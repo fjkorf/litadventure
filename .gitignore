@@ -1,0 +1,3 @@
+/target
+# Screenshot test artifacts (except the checked-in reference)
+tests/screenshots/scene_diff.png

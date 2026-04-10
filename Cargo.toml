@@ -1,0 +1,24 @@
+[package]
+name = "litadventure"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bevy = { version = "0.18.1", features = ["file_watcher"] }
+litui = { path = "../egui-md-macro/crates/litui" }
+egui = "0.33"
+egui_extras = { version = "0.33", features = ["all_loaders"] }
+bevy_egui = "0.39"
+bevy_tweening = "0.15"
+bevy_common_assets = { version = "0.15", features = ["ron"] }
+bevy_skein = "0.5"
+serde = { version = "1", features = ["derive"] }
+image = "0.25"
+
+[[example]]
+name = "screenshot_test"
+path = "examples/screenshot_test.rs"
+
+[[example]]
+name = "load_gltf_test"
+path = "examples/load_gltf_test.rs"
