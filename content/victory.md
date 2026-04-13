@@ -16,4 +16,4 @@ The door swings open and warm light floods in. You step through, leaving the man
 
 :::
 
-[button](Quit){on_quit}
+[button](Restart){on_restart}

@@ -34,7 +34,7 @@ main.rs ─── Plugins ──┬── CameraPlugin (camera.rs)
          │             ├── sync_objectives (on Objectives change)
          │             ├── sync_inventory (on Inventory change)
          │             ├── sync_hints (on HintText change)
-         │             └── sync_win (on GameState change)
+         │             └── sync_overlays (on GameState change)
          │
          └── render_ui ── EguiPrimaryContextPass schedule
 ```
@@ -42,19 +42,27 @@ main.rs ─── Plugins ──┬── CameraPlugin (camera.rs)
 ## Game State Flow
 
 ```
-GameState::Loading ──(assets ready)──> GameState::Playing
-                                            │
-                                       P key / Esc
-                                            │
-                                       GameState::Paused
-                                            │
-                                        Resume
-                                            │
-                                       GameState::Playing
-                                            │
-                                       GameWon message
-                                            │
-                                       GameState::Won
+GameState::Title ──(Start button)──> GameState::Loading ──(data ready)──> GameState::Playing
+                                                                               │
+                                                                          P key / Esc
+                                                                               │
+                                                                          GameState::Paused
+                                                                               │
+                                                                           Resume
+                                                                               │
+                                                                          GameState::Playing
+                                                                               │
+                                                                          GameWon message
+                                                                               │
+                                                                          GameState::Won ──(Restart)──> GameState::Title
+
+                                                                          GameState::Playing
+                                                                               │
+                                                                          Failed RequiresItem + no Portal
+                                                                               │
+                                                                          GameState::GameOver ──(Restart)──> GameState::Title
+
+Title also supports: Continue button ──> Load save ──> GameState::Loading
 ```
 
 ## Interaction Flow
@@ -64,7 +72,7 @@ Player clicks 3D object
     │
     ├─ Pointer<Click> observer fires on_click()
     │
-    ├─ Entity has Portal? ──> RoomTransition message ──> camera tweens to new room
+    ├─ Entity has Portal? ──> PortalApproachRequested ──> three-stage tween (see below)
     │
     ├─ Entity has InventoryItem? ──> ItemPickedUp message ──> item added to Inventory
     │
@@ -89,8 +97,13 @@ Messages are Bevy's `Message` type (replacing the older `Event` system in 0.18):
 | `PlayerNavigated` | interaction.rs (on camera navigation) | objectives.rs, hints.rs |
 | `ItemPickedUp` | interaction.rs (on item collection) | inventory.rs, hints.rs |
 | `ObjectiveCompleted` | objectives.rs (auto), interaction.rs (manual) | objectives.rs, hints.rs |
-| `RoomTransition` | interaction.rs (portal click) | navigation.rs |
+| `PortalApproachRequested` | interaction.rs (portal click) | navigation.rs (Stage 1 tween) |
+| `RoomTransition` | navigation.rs (after Stage 1), main.rs (restart) | navigation.rs (despawn/respawn scene) |
 | `GameWon` | interaction.rs (unlocked door click) | main.rs |
+| `GameOver` | interaction.rs (stuck detection) | main.rs |
+| `SaveRequested` | main.rs (Save button) | save.rs |
+| `LoadRequested` | main.rs (Continue button) | save.rs |
+| `PreviewRequested` | main.rs (combine result) | item_preview.rs |
 
 ## Data Loading Lifecycle
 
@@ -116,9 +129,54 @@ UI is defined in litui markdown pages (`content/*.md`), compiled to egui code at
 
 ## Scene Architecture
 
-The procedural test scene (`scene.rs`) spawns all entities at startup. This will be replaced by glTF loading:
+Each room is a separate `.glb` file loaded via `SceneRoot` + `RoomSceneMarker`:
 
-- `study.glb` contains meshes + bevy_skein component extras
-- `SkeinPlugin` deserializes components from glTF extras at load time
-- `resolve_contained_in` system resolves `ContainedInName(String)` to `ContainedIn(Entity)` by matching `Name` components
-- Camera spots use tiny invisible meshes so Bevy spawns them with `GltfExtras`
+- `study.glb` and `hallway.glb` contain meshes + component data via `BEVY_skein` extension
+- `SkeinPlugin` deserializes components from the glTF extension at load time
+- Camera and lights are spawned once at startup and persist across room transitions
+- `resolve_contained_in` resolves `ContainedInName(String)` → `ContainedIn(Entity)` by matching `Name` components
+- `hide_contained_items` hides items inside closed containers after scene load
+- Camera spots can be empty nodes (no mesh needed with the BEVY_skein extension path)
+
+### Three-Stage Portal Tween
+
+When a portal is clicked, the camera transition happens in stages:
+
+1. **Stage 1 (approach)**: `PortalApproachRequested` → `handle_portal_approach` starts a position-only tween toward the door entity's world position. Old room stays visible.
+2. **Scene swap**: `fire_pending_room_transition` detects Stage 1 complete → fires `RoomTransition`. `process_room_transitions` despawns old scene, loads new `.glb` from `LevelManifest`.
+3. **Stage 2 (entry)**: `tween_camera_to_entry` polls for the new room's `CameraSpot` entity → starts a full position + rotation tween to the entry spot.
+
+`detect_tween_complete` (camera.rs) clears `camera_ctrl.transitioning` between stages.
+
+### Inventory Previews
+
+Items render to 128x128 off-screen textures via `RenderLayers::layer(1)`:
+- `register_item_meshes` captures mesh/material handles when `InventoryItem` entities spawn
+- `spawn_preview_on_pickup` creates a camera + render target per item on `ItemPickedUp`
+- Combined items (no scene mesh) get a fallback sphere preview via `PreviewRequested`
+- Displayed in egui via `EguiUserTextures` + `SizedTexture`
+- Drag-to-combine: each item is both a `dnd_drag_source` and `dnd_drop_zone`
+
+### Game Over Detection
+
+`check_stuck` (interaction.rs) fires `GameOver` when:
+- `FeedbackText` matches a `RequiresItem.fail_message`
+- The player doesn't have the required item
+- No `Portal` entity exists in the current scene (no exit)
+
+If a portal exists, the player can go back — no game over.
+
+## Save/Load
+
+Game state is serialized to `assets/saves/game_save.ron` via the `SaveGame` struct:
+- Inventory items, objective states (visible/completed), current room, camera position/history
+- Entity states (`ObjectState`) and collected entity names
+- Triggered by Save button (pause menu) / Continue button (title screen)
+- Uses `ron` crate for serialization, `std::fs` for file I/O
+
+### Entity State Persistence
+
+On load, `PendingEntityStates` holds the saved entity states. `apply_pending_entity_states` polls each frame until the room scene finishes loading, then:
+- Restores `ObjectState` on named entities (e.g., Drawer → Open)
+- Reveals contained items if their container is Open
+- Hides collected items and removes their `Clickable` component

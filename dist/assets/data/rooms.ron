@@ -1,0 +1,17 @@
+(
+    rooms: [
+        (
+            name: "study",
+            display_name: "The Study",
+            description: "A quiet room lined with bookshelves. Dust motes drift in the light from a single window.",
+            starting_spot: Some("room_overview"),
+        ),
+        (
+            name: "hallway",
+            display_name: "The Hallway",
+            description: "A dim hallway with a worn carpet. Doors line both walls.",
+            starting_spot: Some("hallway_overview"),
+        ),
+    ],
+    starting_room: "study",
+)

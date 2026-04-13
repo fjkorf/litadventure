@@ -1,0 +1,8 @@
+(
+    name: "Demo",
+    starting_room: "study",
+    rooms: {
+        "study": (scene: "scenes/study.glb"),
+        "hallway": (scene: "scenes/hallway.glb"),
+    },
+)

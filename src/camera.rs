@@ -92,6 +92,26 @@ pub fn start_camera_tween(
     ));
 }
 
+/// Starts a position-only camera tween (no rotation change).
+/// Used for the portal approach stage where we just move toward the door.
+pub fn start_camera_tween_to_pos(
+    commands: &mut Commands,
+    camera_entity: Entity,
+    camera_transform: &Transform,
+    end_pos: Vec3,
+) {
+    let tween = Tween::new(
+        EaseFunction::CubicInOut,
+        Duration::from_secs_f32(CAMERA_TWEEN_DURATION * 0.6), // slightly faster for approach
+        TransformPositionLens {
+            start: camera_transform.translation,
+            end: end_pos,
+        },
+    );
+
+    commands.entity(camera_entity).insert(TweenAnim::new(tween));
+}
+
 /// Finds a CameraSpot entity by name.
 pub fn find_spot_by_name<'a>(
     spots: impl Iterator<Item = (&'a CameraSpot, &'a GlobalTransform, Entity)>,

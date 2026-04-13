@@ -58,27 +58,32 @@ litadventure/
 │   ├── inventory.rs        # Inventory resource, items, combination recipes
 │   ├── objectives.rs       # Objective tracking, completion, unlock chains
 │   ├── hints.rs            # Timed 3-tier hint system
-│   ├── navigation.rs       # Room transitions, Portal handling, RoomRegistry
-│   ├── scene.rs            # Procedural test scene, ContainedIn resolver
-│   ├── states.rs           # GameState (Loading/Playing/Paused/Won)
-│   ├── game_data.rs        # RON asset types and loading lifecycle
+│   ├── navigation.rs       # Room transitions, Portal handling, room load/unload
+│   ├── scene.rs            # glTF scene loading, camera/lights setup, ContainedIn resolver
+│   ├── states.rs           # GameState (Title/Loading/Playing/Paused/Won/GameOver)
+│   ├── game_data.rs        # RON asset types, level manifest, loading lifecycle
+│   ├── save.rs             # Save/load game state to/from RON files
 │   └── debug.rs            # F1 debug overlay with wireframe click zones
 ├── content/                # litui markdown UI pages
 │   ├── _app.md             # Global styles
+│   ├── title.md            # Title/start screen with Start + Continue
 │   ├── room_info.md        # Top panel
 │   ├── inventory.md        # Right panel with Combine button
 │   ├── objectives.md       # Bottom panel with hints
-│   ├── help.md             # Pause overlay
-│   └── victory.md          # Win screen
+│   ├── help.md             # Pause overlay with Save button
+│   ├── victory.md          # Win screen with Restart button
+│   └── ...
 ├── assets/
 │   ├── data/               # RON game data (hot-reloadable)
 │   │   ├── objectives.ron
 │   │   ├── hints.ron
 │   │   ├── recipes.ron
-│   │   └── rooms.ron
-│   └── scenes/             # glTF scene files
-│       ├── study.gltf + study.bin
-│       └── study.glb
+│   │   ├── rooms.ron
+│   │   └── demo.level.ron  # Level manifest (room → scene mappings)
+│   ├── scenes/             # glTF scene files (one per room)
+│   │   ├── study.glb (+ study.gltf + study.bin)
+│   │   └── hallway.glb (+ hallway.gltf + hallway.bin)
+│   └── saves/              # Save game files (generated at runtime)
 ├── tools/
 │   └── generate_study.py   # Python script to generate glTF scenes
 ├── examples/
@@ -104,4 +109,5 @@ Game data files in `assets/data/*.ron` support hot-reload. While the app is runn
 | bevy_skein | 0.5 | Blender-to-Bevy component pipeline |
 | bevy_common_assets | 0.15 | RON asset loading |
 | serde | 1 | Serialization for RON data |
+| ron | 0.9 | RON format for save/load |
 | image | 0.25 | Screenshot comparison |

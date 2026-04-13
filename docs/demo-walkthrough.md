@@ -2,9 +2,13 @@
 
 Complete puzzle sequence from start to victory.
 
+## Title Screen
+
+The game opens with a title screen. Click **Start** to begin a new game, or **Continue** to load a saved game (if one exists).
+
 ## The Study
 
-You start in a quiet study, facing a desk, bookshelf, and a door.
+After clicking Start, you enter a quiet study, facing a desk, bookshelf, and a door.
 
 **Objective: "Explore the study."**
 
@@ -24,13 +28,30 @@ You start in a quiet study, facing a desk, bookshelf, and a door.
 
 7. **Explore.** Click the **painting** — it has a clue written on the back: "42". Click the **lens** on the wall to pick it up. Click the **frame** on the floor to pick it up.
 
-8. **Combine items.** With both Lens and Frame in your inventory, click the **Combine** button in the inventory panel. They merge into a **Magnifying Glass**.
+8. **Combine items.** With both Lens and Frame in your inventory, **drag one onto the other** in the inventory panel. They merge into a **Magnifying Glass**.
 
 **Objective: "Unlock the mysterious door."**
 
 9. **Click the locked door.** Since you have the flashlight, you shine it on the lock. It clicks open. The objective completes: **"Escape!"**
 
-10. **Click the unlocked door.** "You step through the door into the light." The victory screen appears.
+10. **Click the unlocked door.** "You step through the door into the light." The victory screen appears with a **Restart** button that returns to the title screen.
+
+## Door Transitions
+
+When you click a door, the camera moves in three stages:
+1. Camera approaches the doorway (position-only tween while the current room is visible)
+2. The current room despawns and the new room loads
+3. Camera tweens to the new room's entry position with rotation
+
+## Game Over
+
+If you find yourself in a room with no exit (no portal back) and fail a required-item interaction, the Game Over screen appears. Click Restart to return to the title screen. In the current demo, the hallway always has a door back to the study, so game over only triggers if a future room has no exit.
+
+## Saving and Loading
+
+- Press **P** to pause, then click **Save** to save your progress
+- On the title screen, click **Continue** to load your last save
+- Save file is stored at `assets/saves/game_save.ron`
 
 ## Controls Summary
 

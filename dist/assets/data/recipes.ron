@@ -1,0 +1,11 @@
+(
+    recipes: [
+        (
+            item_a: "lens",
+            item_b: "frame",
+            result_id: "magnifying_glass",
+            result_name: "Magnifying Glass",
+            result_description: "A small magnifying glass. You can read fine print with this.",
+        ),
+    ],
+)

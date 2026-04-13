@@ -22,6 +22,6 @@ Pick up items and use them to solve puzzles.
 
 ::: horizontal
 
-[button](Resume){on_resume} [button](Quit){on_quit}
+[button](Save){on_save} [button](Resume){on_resume} [button](Restart){on_restart_help}
 
 :::

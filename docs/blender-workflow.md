@@ -72,13 +72,13 @@ Components are deserialized and attached automatically by `SkeinPlugin`.
 
 ### Vec3 serialization format
 
-When writing glTF extras manually (e.g., via `tools/generate_study.py`), Bevy expects Vec3 as an **array** `[0.0, 1.0, 0.0]`, not a map `{"x": 0, "y": 1, "z": 0}`. The Blender addon handles this correctly; it only matters for hand-written glTF.
+When writing `BEVY_skein` extension data manually (e.g., via `tools/generate_study.py`), Bevy expects Vec3 as an **array** `[0.0, 1.0, 0.0]`, not a map `{"x": 0, "y": 1, "z": 0}`. The Blender addon handles this correctly; it only matters for hand-written glTF.
 
-### Empty nodes don't get GltfExtras
+### Empty nodes work with the extension path
 
-Bevy doesn't always attach `GltfExtras` to nodes without meshes. Camera spots (which are spatial markers, not visible objects) need a tiny invisible mesh so Bevy processes their extras. In `generate_study.py`, camera spots get a 0.01-unit box.
+The `BEVY_skein` extension (modern path) processes all nodes during glTF loading, including empty nodes without meshes. Camera spots can be Blender Empties with no geometry — their components load correctly.
 
-When authoring in Blender, use a tiny cube (scale 0.001) for camera spot empties.
+The legacy `extras` path does NOT process empty nodes (Bevy doesn't attach `GltfExtras` to them). Always use the extension path for Bevy 0.18+.
 
 ### Entity references
 

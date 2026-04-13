@@ -6,7 +6,7 @@ use crate::camera::{
 };
 use crate::components::*;
 use crate::inventory::{Inventory, ItemPickedUp};
-use crate::navigation::{Portal, RoomTransition};
+use crate::navigation::{Portal, PortalApproachRequested};
 use crate::objectives::ObjectiveCompleted;
 
 /// Current player interaction state.
@@ -37,6 +37,10 @@ pub struct PlayerNavigated {
 #[derive(Message)]
 pub struct GameWon;
 
+/// Fired when the player is permanently stuck (no portal, failed interaction).
+#[derive(Message)]
+pub struct GameOver;
+
 /// Original emissive stored on hover so we can restore it.
 #[derive(Component)]
 struct OriginalEmissive(LinearRgba);
@@ -58,7 +62,7 @@ fn on_click(
     mut feedback: ResMut<FeedbackText>,
     mut camera_ctrl: ResMut<CameraController>,
     mut pickup_events: MessageWriter<ItemPickedUp>,
-    mut room_events: MessageWriter<RoomTransition>,
+    mut portal_approach_events: MessageWriter<PortalApproachRequested>,
     mut nav_events: MessageWriter<PlayerNavigated>,
     mut objective_events: MessageWriter<ObjectiveCompleted>,
     mut win_events: MessageWriter<GameWon>,
@@ -81,7 +85,8 @@ fn on_click(
     // Portal: transition to another room
     if let Some(portal) = portal {
         feedback.0 = clickable.description.clone();
-        room_events.write(RoomTransition {
+        portal_approach_events.write(PortalApproachRequested {
+            portal_entity: entity,
             target_room: portal.target_room.clone(),
             entry_spot: portal.entry_spot.clone(),
         });
@@ -280,6 +285,83 @@ fn handle_back_navigation(
     );
 }
 
+/// Space key returns the camera to the room's starting spot.
+fn handle_return_to_center(
+    input: Res<ButtonInput<KeyCode>>,
+    camera_q: Query<(Entity, &Transform), With<PlayerCamera>>,
+    spot_q: Query<(&CameraSpot, &GlobalTransform, Entity)>,
+    mut play_state: ResMut<PlayState>,
+    mut camera_ctrl: ResMut<CameraController>,
+    mut feedback: ResMut<FeedbackText>,
+    room_registry: Res<crate::navigation::RoomRegistry>,
+    current_room: Res<crate::navigation::CurrentRoom>,
+    mut commands: Commands,
+) {
+    if !input.just_pressed(KeyCode::Space) || camera_ctrl.transitioning {
+        return;
+    }
+
+    // Find the starting spot for the current room
+    let starting_spot = room_registry
+        .starting_spot(&current_room.name)
+        .unwrap_or("room_overview");
+
+    // Already at the center
+    if camera_ctrl.current_spot.as_deref() == Some(starting_spot) {
+        return;
+    }
+
+    let Ok((camera_entity, camera_transform)) = camera_q.single() else {
+        return;
+    };
+
+    let Some((spot, spot_gt, _)) = find_spot_by_name(spot_q.iter(), starting_spot) else {
+        return;
+    };
+
+    // Clear history and go to center
+    camera_ctrl.history.clear();
+    camera_ctrl.current_spot = Some(starting_spot.to_string());
+    *play_state = PlayState::Transitioning;
+    feedback.0 = "You look around the room.".into();
+
+    start_camera_tween(
+        &mut commands,
+        camera_entity,
+        camera_transform,
+        &spot,
+        &spot_gt,
+    );
+}
+
+/// Detect stuck state: when a RequiresItem interaction fails AND no portal exists.
+fn check_stuck(
+    requires_q: Query<&RequiresItem>,
+    portal_q: Query<(), With<Portal>>,
+    inv: Res<Inventory>,
+    feedback: Res<FeedbackText>,
+    mut game_over_events: MessageWriter<GameOver>,
+) {
+    // Only check when feedback just changed (avoid re-triggering)
+    if !feedback.is_changed() || feedback.0.is_empty() {
+        return;
+    }
+
+    // Check if the feedback matches any RequiresItem fail message
+    let is_fail = requires_q
+        .iter()
+        .any(|req| feedback.0 == req.fail_message && !inv.has_item(&req.item_id));
+
+    if !is_fail {
+        return;
+    }
+
+    if portal_q.is_empty() {
+        game_over_events.write(GameOver);
+    }
+    // If portals exist, the fail_message alone is sufficient — player can go back
+}
+
 /// Highlight clickable objects on hover.
 fn on_hover_start(
     event: On<Pointer<Over>>,
@@ -327,12 +409,13 @@ impl Plugin for InteractionPlugin {
             .init_resource::<FeedbackText>()
             .add_message::<PlayerNavigated>()
             .add_message::<GameWon>()
+            .add_message::<GameOver>()
             .add_observer(on_click)
             .add_observer(on_hover_start)
             .add_observer(on_hover_end)
             .add_systems(
                 Update,
-                (finish_transition, handle_back_navigation),
+                (finish_transition, handle_back_navigation, handle_return_to_center, check_stuck),
             );
     }
 }

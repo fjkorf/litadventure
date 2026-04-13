@@ -1,0 +1,30 @@
+(
+    hints: {
+        "explore": (
+            "What catches your eye?",
+            "The desk might be worth a closer look.",
+            "Click the desk to examine it.",
+        ),
+        "find_flashlight": (
+            "It must be nearby.",
+            "Check inside the furniture.",
+            "Open the drawer on the desk.",
+        ),
+        "explore_hallway": (
+            "There's a door somewhere.",
+            "Look for a way out of the study.",
+            "Click the door on the right wall.",
+        ),
+        "unlock_door": (
+            "You have what you need.",
+            "Shine some light on it.",
+            "Click the locked door while holding the flashlight.",
+        ),
+        "escape": (
+            "The way is open now.",
+            "The unlocked door awaits.",
+            "Click the unlocked door to escape.",
+        ),
+    },
+    tier_thresholds: (30.0, 60.0, 90.0),
+)

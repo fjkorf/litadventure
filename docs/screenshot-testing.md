@@ -15,7 +15,7 @@ cargo run --example screenshot_test
 ## How It Works
 
 1. Opens a 1280x720 window (Retina: 2560x1440 actual pixels)
-2. Spawns the procedural test scene (same geometry as the game, no UI overlay)
+2. Spawns a test scene with the same geometry as the game (no UI overlay)
 3. Waits 10 frames for GPU pipeline warm-up
 4. Captures the rendered frame via `Screenshot::primary_window()`
 5. In `--save` mode: writes to `tests/screenshots/scene_reference.png`

@@ -20,7 +20,7 @@ See [docs/getting-started.md](docs/getting-started.md) for prerequisites and det
 | [Getting Started](docs/getting-started.md) | Build, run, test, project structure |
 | [Architecture](docs/architecture.md) | Engine/data separation, module map, state and message flow |
 | [Components](docs/components.md) | All game components with fields and usage |
-| [Data Formats](docs/data-formats.md) | RON schemas for objectives, hints, recipes, rooms |
+| [Data Formats](docs/data-formats.md) | RON schemas for objectives, hints, recipes, rooms, level manifests, saves |
 | [Blender Workflow](docs/blender-workflow.md) | bevy_skein setup, adding components, exporting glTF |
 | [Adding Content](docs/adding-content.md) | How to add rooms, items, objectives, hints |
 | [Debug Mode](docs/debug-mode.md) | F1 overlay, wireframe colors, camera spot visualization |

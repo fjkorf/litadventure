@@ -9,13 +9,4 @@ page:
 
 ## Items ::title
 
-::: foreach inv_items
-
-| {name} | {qty} |
-|--------|-------|
-
-:::
-
-[button](Combine){on_combine}
-
 [display](inv_hint) ::muted

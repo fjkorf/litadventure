@@ -7,12 +7,27 @@
 In Blender (or `tools/generate_study.py`):
 - Model the room geometry (floor, walls, objects)
 - Add `Clickable` components to interactive objects
-- Add `CameraSpot` components to camera positions (with tiny mesh)
+- Add `CameraSpot` components to camera positions (can be Blender Empties, no mesh needed)
 - Add `ParentSpot` to CameraSpots that have a parent
 - Add at least one `Portal` to connect to another room
 - Export as `assets/scenes/your_room.glb`
 
-### 2. Add room metadata
+### 2. Add to level manifest
+
+Edit `assets/data/demo.level.ron`:
+```ron
+(
+    name: "Demo",
+    starting_room: "study",
+    rooms: {
+        "study": (scene: "scenes/study.glb"),
+        "hallway": (scene: "scenes/hallway.glb"),
+        "cellar": (scene: "scenes/cellar.glb"),  // Add this line
+    },
+)
+```
+
+### 3. Add room metadata
 
 Edit `assets/data/rooms.ron`:
 ```ron
@@ -30,7 +45,7 @@ Edit `assets/data/rooms.ron`:
 )
 ```
 
-### 3. Connect rooms with portals
+### 4. Connect rooms with portals
 
 In the source room's scene, add a `Portal` component to a door object:
 - `target_room`: `"cellar"` (matches the `name` in rooms.ron)
@@ -118,6 +133,8 @@ Attach these components to the door object:
 - `RequiresItem` — specify the item_id, use_message, and fail_message
 
 When the player clicks it with the required item, it transitions to `Unlocked`. Clicking an `Unlocked` door fires `GameWon` (this behavior is hardcoded for the demo; future versions will make this data-driven).
+
+**Game over detection**: If the player clicks a `RequiresItem` door without the item AND the current room has no `Portal` entity (no way back), the game triggers `GameOver`. Always ensure rooms with locked doors have a portal back to another room where the player can find the required item.
 
 ## Adding a Container (Drawer, Chest, etc.)
 

@@ -9,8 +9,10 @@ mod game_data;
 mod hints;
 mod interaction;
 mod inventory;
+mod item_preview;
 mod navigation;
 mod objectives;
+mod save;
 mod scene;
 mod states;
 
@@ -25,6 +27,8 @@ mod pages {
         "content/objectives.md",
         "content/help.md",
         "content/victory.md",
+        "content/title.md",
+        "content/game_over.md",
     }
 }
 
@@ -35,13 +39,19 @@ impl Resource for AppState {}
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins.set(WindowPlugin {
-            primary_window: Some(Window {
-                title: "LitAdventure".into(),
+        .add_plugins(DefaultPlugins
+            .set(WindowPlugin {
+                primary_window: Some(Window {
+                    title: "LitAdventure".into(),
+                    ..default()
+                }),
                 ..default()
-            }),
-            ..default()
-        }))
+            })
+            .set(bevy::asset::AssetPlugin {
+                meta_check: bevy::asset::AssetMetaCheck::Never,
+                ..default()
+            })
+        )
         .add_plugins(MeshPickingPlugin)
         .add_plugins(bevy_skein::SkeinPlugin::default())
         .add_plugins(EguiPlugin::default())
@@ -55,6 +65,8 @@ fn main() {
         .add_plugins(states::StatesPlugin)
         .add_plugins(hints::HintsPlugin)
         .add_plugins(game_data::GameDataPlugin)
+        .add_plugins(save::SavePlugin)
+        .add_plugins(item_preview::ItemPreviewPlugin)
         .add_plugins(debug::DebugPlugin)
         .register_type::<components::Clickable>()
         .register_type::<components::CameraSpot>()
@@ -80,8 +92,9 @@ fn main() {
                 sync_objectives.run_if(resource_changed::<objectives::Objectives>),
                 sync_inventory.run_if(resource_changed::<inventory::Inventory>),
                 sync_hints.run_if(resource_changed::<hints::HintText>),
-                sync_win.run_if(state_changed::<states::GameState>),
+                sync_overlays.run_if(state_changed::<states::GameState>),
                 handle_game_won,
+                handle_game_over,
             ),
         )
         .run();
@@ -90,9 +103,7 @@ fn main() {
 // -- One-time UI initialization --
 
 fn init_ui_state(mut state: ResMut<'_, AppState>) {
-    state.show_room_info = true;
-    state.show_inventory = true;
-    state.show_objectives = true;
+    state.show_title = true;
     state.feedback_text = "You look around the room.".into();
 }
 
@@ -129,19 +140,12 @@ fn sync_inventory(
     mut state: ResMut<'_, AppState>,
     inv: Res<'_, inventory::Inventory>,
 ) {
-    state.inv_items = inv
-        .items
-        .iter()
-        .map(|item| Inv_itemsRow {
-            name: item.name.clone(),
-            qty: item.qty.to_string(),
-        })
-        .collect();
-
     state.inv_hint = if inv.items.is_empty() {
         "Your pockets are empty.".into()
+    } else if inv.items.len() >= 2 {
+        "Drag one item onto another to combine.".into()
     } else {
-        format!("{} item(s) collected.", inv.items.len())
+        "1 item collected.".into()
     };
 }
 
@@ -152,13 +156,21 @@ fn sync_hints(
     state.hint_text.clone_from(&hint_text.0);
 }
 
-fn sync_win(
+fn sync_overlays(
     mut state: ResMut<'_, AppState>,
     game_state: Res<'_, State<states::GameState>>,
 ) {
     let gs = *game_state.get();
+    state.show_title = gs == states::GameState::Title;
     state.show_help = gs == states::GameState::Paused;
     state.show_victory = gs == states::GameState::Won;
+    state.show_game_over = gs == states::GameState::GameOver;
+
+    // Only show game panels when playing or paused
+    let in_game = gs == states::GameState::Playing || gs == states::GameState::Paused;
+    state.show_room_info = in_game;
+    state.show_inventory = in_game;
+    state.show_objectives = in_game;
 }
 
 /// Listen for GameWon messages and transition state.
@@ -171,6 +183,16 @@ fn handle_game_won(
     }
 }
 
+/// Listen for GameOver messages and transition state.
+fn handle_game_over(
+    mut reader: MessageReader<interaction::GameOver>,
+    mut next: ResMut<NextState<states::GameState>>,
+) {
+    for _ in reader.read() {
+        next.set(states::GameState::GameOver);
+    }
+}
+
 // -- UI Rendering --
 
 fn render_ui(
@@ -178,9 +200,17 @@ fn render_ui(
     mut state: ResMut<'_, AppState>,
     mut inv: ResMut<'_, inventory::Inventory>,
     mut feedback: ResMut<'_, interaction::FeedbackText>,
+    mut objectives: ResMut<'_, objectives::Objectives>,
+    mut camera_ctrl: ResMut<'_, camera::CameraController>,
+    mut hint_state: ResMut<'_, hints::HintState>,
+    mut data_ready: ResMut<'_, game_data::GameDataReady>,
     game_state: Res<'_, State<states::GameState>>,
     mut next_game_state: ResMut<'_, NextState<states::GameState>>,
-    mut exit: MessageWriter<'_, AppExit>,
+    mut save_events: MessageWriter<'_, save::SaveRequested>,
+    mut load_events: MessageWriter<'_, save::LoadRequested>,
+    item_previews: Res<'_, item_preview::ItemPreviews>,
+    mut preview_events: MessageWriter<'_, item_preview::PreviewRequested>,
+    mut room_transition_events: MessageWriter<'_, navigation::RoomTransition>,
     mut loaders_installed: Local<bool>,
 ) -> Result {
     if !*loaders_installed {
@@ -195,13 +225,79 @@ fn render_ui(
         });
     }
 
-    // Right panel: inventory
+    // Right panel: inventory (draggable item images + litui hint text)
     if state.show_inventory {
+        // Pre-collect (item_id, name, tex_id) before borrowing ctxs mutably
+        let tex_ids: Vec<(String, String, Option<egui::TextureId>)> = inv
+            .items
+            .iter()
+            .map(|item| {
+                let tex_id = item_previews
+                    .previews
+                    .get(&item.item_id)
+                    .and_then(|h| ctxs.image_id(h));
+                (item.item_id.clone(), item.name.clone(), tex_id)
+            })
+            .collect();
+
+        // Track combine result from drag-drop (applied after the panel renders)
+        let mut combine_pair: Option<(String, String)> = None;
+
         egui::SidePanel::right("inventory_panel")
             .default_width(200.0)
             .show(ctxs.ctx_mut()?, |ui| {
+                // Draggable item images
+                if !tex_ids.is_empty() {
+                    ui.horizontal_wrapped(|ui| {
+                        for (item_id, name, tex_id) in &tex_ids {
+                            let drag_id = egui::Id::new(("inv_item", item_id.as_str()));
+                            let frame = egui::Frame::new().inner_margin(egui::Margin::same(4));
+
+                            let (_, dropped) =
+                                ui.dnd_drop_zone::<String, _>(frame, |ui| {
+                                    ui.dnd_drag_source(drag_id, item_id.clone(), |ui| {
+                                        ui.vertical(|ui| {
+                                            if let Some(tid) = tex_id {
+                                                ui.image(egui::load::SizedTexture::new(
+                                                    *tid,
+                                                    egui::vec2(64.0, 64.0),
+                                                ));
+                                            }
+                                            ui.small(name);
+                                        });
+                                    });
+                                });
+
+                            if let Some(dragged_id) = dropped {
+                                if *dragged_id != *item_id {
+                                    combine_pair =
+                                        Some((dragged_id.to_string(), item_id.clone()));
+                                }
+                            }
+                        }
+                    });
+                    ui.separator();
+                }
+
+                // Litui handles hint text
                 render_inventory(ui, &mut state);
             });
+
+        // Apply combine result outside the panel closure (needs &mut inv)
+        if let Some((a, b)) = combine_pair {
+            if let Some(result_name) = inv.combine(&a, &b) {
+                feedback.0 = format!("You created a {}!", result_name);
+                // Find the result item_id and request a preview
+                if let Some(result_item) = inv.items.last() {
+                    preview_events.write(item_preview::PreviewRequested {
+                        item_id: result_item.item_id.clone(),
+                        name: result_item.name.clone(),
+                    });
+                }
+            } else {
+                feedback.0 = "These don't seem to work together.".into();
+            }
+        }
     }
 
     // Bottom panel: feedback + objectives + hints
@@ -231,6 +327,28 @@ fn render_ui(
             });
     }
 
+    // Window: game over screen
+    if state.show_game_over {
+        egui::Window::new("Game Over")
+            .collapsible(false)
+            .title_bar(false)
+            .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+            .show(ctxs.ctx_mut()?, |ui| {
+                render_game_over(ui, &mut state);
+            });
+    }
+
+    // Window: title screen
+    if state.show_title {
+        egui::Window::new("Title")
+            .collapsible(false)
+            .title_bar(false)
+            .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+            .show(ctxs.ctx_mut()?, |ui| {
+                render_title(ui, &mut state);
+            });
+    }
+
     // Handle button events
     if state.on_resume_count > 0 {
         state.on_resume_count = 0;
@@ -238,25 +356,44 @@ fn render_ui(
             next_game_state.set(states::GameState::Playing);
         }
     }
-    if state.on_quit_count > 0 {
-        state.on_quit_count = 0;
-        exit.write(AppExit::Success);
+    if state.on_start_count > 0 {
+        state.on_start_count = 0;
+        next_game_state.set(states::GameState::Loading);
     }
 
-    // Handle combine button
-    if state.on_combine_count > 0 {
-        state.on_combine_count = 0;
-        if inv.items.len() >= 2 {
-            let a = inv.items[0].item_id.clone();
-            let b = inv.items[1].item_id.clone();
-            if let Some(result_name) = inv.combine(&a, &b) {
-                feedback.0 = format!("You created a {}!", result_name);
-            } else {
-                feedback.0 = "These don't seem to work together.".into();
-            }
-        } else {
-            feedback.0 = "You need at least two items to combine.".into();
-        }
+    // All restart buttons (victory, help/pause, game over) do the same thing
+    let any_restart = state.on_restart_count > 0
+        || state.on_restart_help_count > 0
+        || state.on_restart_gameover_count > 0;
+    if any_restart {
+        state.on_restart_count = 0;
+        state.on_restart_help_count = 0;
+        state.on_restart_gameover_count = 0;
+        inv.items.clear();
+        feedback.0 = "You look around the room.".into();
+        objectives.all.clear();
+        camera_ctrl.history.clear();
+        camera_ctrl.current_spot = Some("room_overview".into());
+        camera_ctrl.transitioning = false;
+        hint_state.idle_time = 0.0;
+        hint_state.available_tier = 0;
+        // Reload the starting room (despawns current, loads study.glb)
+        room_transition_events.write(navigation::RoomTransition {
+            target_room: "study".into(),
+            entry_spot: "room_overview".into(),
+        });
+        next_game_state.set(states::GameState::Title);
+    }
+
+    // Handle save/load
+    if state.on_save_count > 0 {
+        state.on_save_count = 0;
+        save_events.write(save::SaveRequested);
+    }
+    if state.on_continue_count > 0 {
+        state.on_continue_count = 0;
+        next_game_state.set(states::GameState::Loading);
+        load_events.write(save::LoadRequested);
     }
 
     Ok(())
@@ -273,7 +410,7 @@ mod tests {
         assert!(state.room_desc.is_empty());
         assert!(state.feedback_text.is_empty());
         assert!(state.current_objective.is_empty());
-        assert!(state.inv_items.is_empty());
+        assert!(state.inv_hint.is_empty());
         assert!(!state.show_help);
         assert!(!state.show_victory);
     }
@@ -285,7 +422,9 @@ mod tests {
         let _obj = Page::Objectives;
         let _help = Page::Help;
         let _vic = Page::Victory;
-        assert_eq!(Page::ALL.len(), 5);
+        let _title = Page::Title;
+        let _game_over = Page::GameOver;
+        assert_eq!(Page::ALL.len(), 7);
     }
 
     #[test]

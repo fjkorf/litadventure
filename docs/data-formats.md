@@ -132,6 +132,59 @@ Defines room metadata (display names and descriptions for the UI).
 )
 ```
 
+## demo.level.ron
+
+The level manifest maps room names to their glTF scene files. It tells the engine which `.glb` to load when entering each room.
+
+```ron
+(
+    name: "Demo",                                    // Level display name
+    starting_room: "study",                          // First room loaded on game start
+    rooms: {
+        "study": (scene: "scenes/study.glb"),        // Room name → scene file path
+        "hallway": (scene: "scenes/hallway.glb"),
+    },
+)
+```
+
+**Fields**:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | String | Display name of the level |
+| `starting_room` | String | Room loaded at game start (matches a key in `rooms`) |
+| `rooms` | HashMap\<String, RoomSceneRef\> | Maps room names to scene file paths |
+
+Room names must match:
+- The `name` field in `rooms.ron`
+- The `target_room` field on `Portal` components in glTF scenes
+
+## game_save.ron (generated at runtime)
+
+Save files are written to `assets/saves/game_save.ron` when the player clicks Save in the pause menu. The format is:
+
+```ron
+(
+    current_room: "hallway",
+    camera_spot: Some("hallway_overview"),
+    camera_history: [],
+    items: [
+        (item_id: "flashlight", name: "Flashlight", qty: 1),
+    ],
+    objective_states: [
+        (id: "explore", visible: true, completed: true),
+        (id: "find_flashlight", visible: true, completed: true),
+    ],
+    entity_states: [
+        ("Drawer", "Open"),
+        ("LockedDoor", "Unlocked"),
+    ],
+    collected_entities: ["Flashlight"],
+)
+```
+
+This file should not be hand-edited. It's managed by the save/load system (`src/save.rs`).
+
 ## Adding New Data
 
 To add a new objective, add an entry to `objectives.ron`, optionally add hints for it in `hints.ron`, and ensure something triggers its completion (an item requirement, a navigation requirement, or a manual `ObjectiveCompleted` message from the interaction system).

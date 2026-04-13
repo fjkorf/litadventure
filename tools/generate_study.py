@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate study.gltf and study.glb for the litadventure demo scene.
 
-Creates simple box/plane geometry with bevy_skein component data in extras.
+Creates simple box/plane geometry with bevy_skein component data via BEVY_skein extension.
 Run: python3 tools/generate_study.py
 """
 
@@ -55,10 +55,12 @@ def plane_mesh(sx, sz):
 
 
 def cylinder_mesh(radius, height, segments=12):
-    """Create a simple cylinder (no caps for simplicity)."""
+    """Create a cylinder with side walls and top/bottom caps."""
     positions = []
     normals = []
     indices = []
+
+    # Side walls
     for i in range(segments):
         a = 2 * math.pi * i / segments
         nx, nz = math.cos(a), math.sin(a)
@@ -71,7 +73,32 @@ def cylinder_mesh(radius, height, segments=12):
         j = (i + 1) % segments
         b = i * 2
         n = j * 2
-        indices.extend([b, n, n + 1, b, n + 1, b + 1])
+        indices.extend([b, n + 1, n, b, b + 1, n + 1])
+
+    # Top cap (y = +height/2, normal up)
+    top_center = len(positions)
+    positions.append([0, height / 2, 0])
+    normals.append([0, 1, 0])
+    for i in range(segments):
+        a = 2 * math.pi * i / segments
+        positions.append([radius * math.cos(a), height / 2, radius * math.sin(a)])
+        normals.append([0, 1, 0])
+    for i in range(segments):
+        j = (i + 1) % segments
+        indices.extend([top_center, top_center + 1 + i, top_center + 1 + j])
+
+    # Bottom cap (y = -height/2, normal down)
+    bot_center = len(positions)
+    positions.append([0, -height / 2, 0])
+    normals.append([0, -1, 0])
+    for i in range(segments):
+        a = 2 * math.pi * i / segments
+        positions.append([radius * math.cos(a), -height / 2, radius * math.sin(a)])
+        normals.append([0, -1, 0])
+    for i in range(segments):
+        j = (i + 1) % segments
+        indices.extend([bot_center, bot_center + 1 + j, bot_center + 1 + i])
+
     return positions, normals, indices
 
 
@@ -188,14 +215,16 @@ class GltfBuilder:
         })
         return mesh_idx
 
-    def add_node(self, name, mesh_idx=None, translation=None, extras=None):
+    def add_node(self, name, mesh_idx=None, translation=None, components=None):
         node = {"name": name}
         if mesh_idx is not None:
             node["mesh"] = mesh_idx
         if translation:
             node["translation"] = translation
-        if extras:
-            node["extras"] = extras
+        if components:
+            node["extensions"] = {
+                "BEVY_skein": {"components": components}
+            }
         idx = len(self.nodes)
         self.nodes.append(node)
         self.scene_nodes.append(idx)
@@ -204,6 +233,7 @@ class GltfBuilder:
     def to_gltf_json(self, bin_uri="study.bin"):
         return {
             "asset": {"version": "2.0", "generator": "litadventure generate_study.py"},
+            "extensionsUsed": ["BEVY_skein"],
             "scene": 0,
             "scenes": [{"name": "Study", "nodes": self.scene_nodes}],
             "nodes": self.nodes,
@@ -253,8 +283,8 @@ class GltfBuilder:
 # -- Skein component helpers --
 
 def skein(*components):
-    """Build skein extras dict from component tuples."""
-    return {"skein": [{k: v} for k, v in components]}
+    """Build BEVY_skein component list from component tuples."""
+    return [{k: v} for k, v in components]
 
 def clickable(label, description):
     return ("litadventure::components::Clickable", {"label": label, "description": description})
@@ -290,12 +320,12 @@ def tween_config(open_offset, duration_ms):
     })
 
 
-# -- Build the scene --
+# -- Build the scenes --
 
 def build_study():
+    """Build the study room scene."""
     g = GltfBuilder()
 
-    # Materials
     floor_mat = g.add_material(0.3, 0.25, 0.2, "FloorMat")
     wall_mat = g.add_material(0.6, 0.55, 0.5, "WallMat")
     desk_mat = g.add_material(0.45, 0.3, 0.15, "DeskMat")
@@ -303,132 +333,121 @@ def build_study():
     flashlight_mat = g.add_material(0.7, 0.7, 0.2, "FlashlightMat")
     bookshelf_mat = g.add_material(0.35, 0.22, 0.1, "BookshelfMat")
     door_mat = g.add_material(0.4, 0.28, 0.12, "DoorMat")
-    hallway_floor_mat = g.add_material(0.25, 0.2, 0.18, "HallwayFloorMat")
-    hallway_wall_mat = g.add_material(0.5, 0.48, 0.44, "HallwayWallMat")
-    painting_mat = g.add_material(0.2, 0.3, 0.5, "PaintingMat")
-    lens_mat = g.add_material(0.6, 0.8, 0.9, "LensMat")
-    frame_mat = g.add_material(0.5, 0.4, 0.2, "FrameMat")
-    locked_door_mat = g.add_material(0.3, 0.2, 0.1, "LockedDoorMat")
 
-    # Floor
     pos, nrm, idx = plane_mesh(10.0, 10.0)
     mesh = g.add_mesh(pos, nrm, idx, floor_mat, "FloorMesh")
     g.add_node("Floor", mesh)
 
-    # Back wall
     pos, nrm, idx = box_mesh(10.0, 5.0, 0.1)
     mesh = g.add_mesh(pos, nrm, idx, wall_mat, "BackWallMesh")
     g.add_node("BackWall", mesh, translation=[0, 2.5, -5])
 
-    # Desk
     pos, nrm, idx = box_mesh(2.0, 0.8, 1.0)
     mesh = g.add_mesh(pos, nrm, idx, desk_mat, "DeskMesh")
     g.add_node("Desk", mesh, translation=[0, 0.8, -2],
-               extras=skein(
+               components=skein(
                    clickable("Desk", "A sturdy wooden desk. Its surface is worn smooth."),
                    navigates_to("desk_closeup"),
                ))
 
-    # Drawer
     pos, nrm, idx = box_mesh(0.6, 0.2, 0.4)
     mesh = g.add_mesh(pos, nrm, idx, drawer_mat, "DrawerMesh")
     g.add_node("Drawer", mesh, translation=[0, 0.55, -1.3],
-               extras=skein(
+               components=skein(
                    clickable("Drawer", "A small desk drawer with a brass handle."),
                    object_state("Closed"),
                    tween_config([0, 0, 0.4], 400),
                ))
 
-    # Flashlight
     pos, nrm, idx = cylinder_mesh(0.05, 0.3)
     mesh = g.add_mesh(pos, nrm, idx, flashlight_mat, "FlashlightMesh")
     g.add_node("Flashlight", mesh, translation=[0, 0.7, -1.4],
-               extras=skein(
+               components=skein(
                    clickable("Flashlight", "A small flashlight. It still works."),
                    inventory_item("Flashlight", "A small flashlight. It still works.", "flashlight"),
                    contained_in_name("Drawer"),
                ))
 
-    # Bookshelf
     pos, nrm, idx = box_mesh(1.5, 3.0, 0.4)
     mesh = g.add_mesh(pos, nrm, idx, bookshelf_mat, "BookshelfMesh")
     g.add_node("Bookshelf", mesh, translation=[-3, 1.5, -4.5],
-               extras=skein(
+               components=skein(
                    clickable("Bookshelf", "Rows of old books. Most are too faded to read."),
                ))
 
-    # Camera spots — need a tiny mesh so Bevy spawns them as entities with GltfExtras
-    spot_mat = g.add_material(0, 0, 0, "SpotMat")
-    spot_pos, spot_nrm, spot_idx = box_mesh(0.01, 0.01, 0.01)
-    spot_mesh = g.add_mesh(spot_pos, spot_nrm, spot_idx, spot_mat, "SpotMesh")
+    g.add_node("CameraSpot_RoomOverview", translation=[0, 3, 6],
+               components=skein(camera_spot("room_overview", [0, 1, 0])))
 
-    g.add_node("CameraSpot_RoomOverview", mesh_idx=spot_mesh, translation=[0, 3, 6],
-               extras=skein(camera_spot("room_overview", [0, 1, 0])))
-
-    g.add_node("CameraSpot_DeskCloseup", mesh_idx=spot_mesh, translation=[0, 1.8, 0.5],
-               extras=skein(
+    g.add_node("CameraSpot_DeskCloseup", translation=[0, 1.8, 0.5],
+               components=skein(
                    camera_spot("desk_closeup", [0, 0.8, -2]),
                    parent_spot("room_overview"),
                ))
 
-    g.add_node("CameraSpot_DrawerDetail", mesh_idx=spot_mesh, translation=[0, 1.2, -0.5],
-               extras=skein(
+    g.add_node("CameraSpot_DrawerDetail", translation=[0, 1.2, -0.5],
+               components=skein(
                    camera_spot("drawer_detail", [0, 0.55, -1.8]),
                    parent_spot("desk_closeup"),
                ))
 
-    # Door to hallway
     pos, nrm, idx = box_mesh(0.8, 2.0, 0.1)
     mesh = g.add_mesh(pos, nrm, idx, door_mat, "DoorMesh")
     g.add_node("Door", mesh, translation=[3, 1, -4.9],
-               extras=skein(
+               components=skein(
                    clickable("Door", "A wooden door leading to the hallway."),
                    portal("hallway", "hallway_overview"),
                ))
 
-    # -- Hallway --
+    return g
 
-    # Hallway floor
+
+def build_hallway():
+    """Build the hallway room scene."""
+    g = GltfBuilder()
+
+    floor_mat = g.add_material(0.25, 0.2, 0.18, "HallwayFloorMat")
+    wall_mat = g.add_material(0.5, 0.48, 0.44, "HallwayWallMat")
+    painting_mat = g.add_material(0.2, 0.3, 0.5, "PaintingMat")
+    lens_mat = g.add_material(0.6, 0.8, 0.9, "LensMat")
+    frame_mat = g.add_material(0.5, 0.4, 0.2, "FrameMat")
+    locked_door_mat = g.add_material(0.3, 0.2, 0.1, "LockedDoorMat")
+    door_mat = g.add_material(0.4, 0.28, 0.12, "DoorMat")
+
     pos, nrm, idx = plane_mesh(6.0, 16.0)
-    mesh = g.add_mesh(pos, nrm, idx, hallway_floor_mat, "HallwayFloorMesh")
+    mesh = g.add_mesh(pos, nrm, idx, floor_mat, "HallwayFloorMesh")
     g.add_node("HallwayFloor", mesh, translation=[0, 0, -14])
 
-    # Hallway end wall
     pos, nrm, idx = box_mesh(6.0, 4.0, 0.1)
-    mesh = g.add_mesh(pos, nrm, idx, hallway_wall_mat, "HallwayEndWallMesh")
+    mesh = g.add_mesh(pos, nrm, idx, wall_mat, "HallwayEndWallMesh")
     g.add_node("HallwayEndWall", mesh, translation=[0, 2, -22])
 
-    # Painting
     pos, nrm, idx = box_mesh(0.8, 0.6, 0.05)
     mesh = g.add_mesh(pos, nrm, idx, painting_mat, "PaintingMesh")
     g.add_node("Painting", mesh, translation=[-2.5, 1.8, -14],
-               extras=skein(
+               components=skein(
                    clickable("Painting", "A faded landscape painting. Something is written on the back: '42'."),
                ))
 
-    # Lens
     pos, nrm, idx = cylinder_mesh(0.08, 0.02)
     mesh = g.add_mesh(pos, nrm, idx, lens_mat, "LensMesh")
     g.add_node("Lens", mesh, translation=[-2, 0.8, -13.5],
-               extras=skein(
+               components=skein(
                    clickable("Lens", "A small glass lens, slightly dusty."),
                    inventory_item("Lens", "A small glass lens.", "lens"),
                ))
 
-    # Frame
     pos, nrm, idx = box_mesh(0.12, 0.02, 0.06)
     mesh = g.add_mesh(pos, nrm, idx, frame_mat, "FrameMesh")
     g.add_node("Frame", mesh, translation=[1, 0.05, -12],
-               extras=skein(
+               components=skein(
                    clickable("Frame", "A small brass frame. Looks like it once held a lens."),
                    inventory_item("Frame", "A small brass frame.", "frame"),
                ))
 
-    # Locked door
     pos, nrm, idx = box_mesh(0.8, 2.0, 0.1)
     mesh = g.add_mesh(pos, nrm, idx, locked_door_mat, "LockedDoorMesh")
     g.add_node("LockedDoor", mesh, translation=[2.5, 1, -18],
-               extras=skein(
+               components=skein(
                    clickable("Locked Door", "A heavy door. It's too dark to see the lock clearly."),
                    object_state("Locked"),
                    requires_item("flashlight",
@@ -436,15 +455,13 @@ def build_study():
                                  "It's too dark to see the lock clearly."),
                ))
 
-    # Hallway camera spot
-    g.add_node("CameraSpot_HallwayOverview", mesh_idx=spot_mesh, translation=[0, 2.5, -8],
-               extras=skein(camera_spot("hallway_overview", [0, 1, -14])))
+    g.add_node("CameraSpot_HallwayOverview", translation=[0, 2.5, -8],
+               components=skein(camera_spot("hallway_overview", [0, 1, -14])))
 
-    # Door back to study
     pos, nrm, idx = box_mesh(0.8, 2.0, 0.1)
     mesh = g.add_mesh(pos, nrm, idx, door_mat, "DoorToStudyMesh")
     g.add_node("DoorToStudy", mesh, translation=[-2.5, 1, -8.5],
-               extras=skein(
+               components=skein(
                    clickable("Door", "The door back to the study."),
                    portal("study", "room_overview"),
                ))
@@ -456,6 +473,10 @@ if __name__ == "__main__":
     out_dir = os.path.join(os.path.dirname(__file__), "..", "assets", "scenes")
     os.makedirs(out_dir, exist_ok=True)
 
-    g = build_study()
-    g.write_gltf(os.path.join(out_dir, "study.gltf"))
-    g.write_glb(os.path.join(out_dir, "study.glb"))
+    study = build_study()
+    study.write_gltf(os.path.join(out_dir, "study.gltf"))
+    study.write_glb(os.path.join(out_dir, "study.glb"))
+
+    hallway = build_hallway()
+    hallway.write_gltf(os.path.join(out_dir, "hallway.gltf"))
+    hallway.write_glb(os.path.join(out_dir, "hallway.glb"))

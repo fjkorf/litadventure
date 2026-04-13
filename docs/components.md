@@ -161,10 +161,14 @@ Defined in `src/navigation.rs`.
 
 ## Skein / glTF Compatibility
 
-All components (except `ContainedIn`) can be attached to Blender objects via bevy_skein. Key format notes for glTF extras:
+All components (except `ContainedIn`) can be attached to Blender objects via bevy_skein. See [blender-workflow.md](blender-workflow.md) for setup and the import extension.
+
+Key format notes for the `BEVY_skein` glTF extension:
 
 - `Vec3` fields serialize as arrays: `[0.0, 1.0, 0.0]` (NOT `{"x": 0, "y": 1, "z": 0}`)
 - `ObjectState` enum variants serialize as strings: `"Closed"`, `"Locked"`, etc.
 - `String` fields serialize as JSON strings
 - `u32` fields serialize as JSON numbers
 - Type paths use the full Rust path: `"litadventure::components::Clickable"`
+
+The Skein import extension supports round-tripping: import a `.glb` with `BEVY_skein` data, edit components in Blender, re-export. Unit-variant enums (like ObjectState) are preserved correctly.

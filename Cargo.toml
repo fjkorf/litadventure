@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bevy = { version = "0.18.1", features = ["file_watcher"] }
+bevy = "0.18.1"
 litui = { path = "../egui-md-macro/crates/litui" }
 egui = "0.33"
 egui_extras = { version = "0.33", features = ["all_loaders"] }
@@ -13,7 +13,29 @@ bevy_tweening = "0.15"
 bevy_common_assets = { version = "0.15", features = ["ron"] }
 bevy_skein = "0.5"
 serde = { version = "1", features = ["derive"] }
-image = "0.25"
+ron = "0.9"
+image = { version = "0.25", default-features = false, features = ["png"] }
+
+# Native-only: file watching for hot-reload during development
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+bevy = { version = "0.18.1", features = ["file_watcher"] }
+
+# WASM: WebGL2 rendering + web-sys for localStorage save/load
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+bevy = { version = "0.18.1", features = ["webgl2"] }
+web-sys = { version = "0.3", features = ["Window", "Storage"] }
+
+# getrandom WASM support (both v0.2 and v0.3 needed by transitive deps)
+[target.'cfg(all(target_family = "wasm", any(target_os = "unknown", target_os = "none")))'.dependencies]
+getrandom_02 = { version = "0.2", features = ["js"], package = "getrandom" }
+getrandom = { version = "0.3", features = ["wasm_js"] }
+
+# WASM-optimized release profile
+[profile.wasm-release]
+inherits = "release"
+opt-level = "z"
+lto = "thin"
+strip = "debuginfo"
 
 [[example]]
 name = "screenshot_test"

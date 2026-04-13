@@ -4,10 +4,12 @@ use bevy::prelude::*;
 #[derive(States, Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum GameState {
     #[default]
+    Title,
     Loading,
     Playing,
     Paused,
     Won,
+    GameOver,
 }
 
 /// System that transitions from Loading to Playing after one frame.
@@ -57,8 +59,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn game_state_default_is_loading() {
+    fn game_state_default_is_title() {
         let state = GameState::default();
-        assert_eq!(state, GameState::Loading);
+        assert_eq!(state, GameState::Title);
     }
 }

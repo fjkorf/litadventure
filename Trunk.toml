@@ -1,0 +1,11 @@
+[build]
+# Target directory for the WASM output
+target = "index.html"
+
+[watch]
+# Watch these directories for changes
+watch = ["src", "content", "assets"]
+
+[serve]
+address = "127.0.0.1"
+port = 8080
