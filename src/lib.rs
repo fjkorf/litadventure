@@ -1,5 +1,6 @@
 pub mod camera;
 pub mod components;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod debug;
 pub mod game_data;
 pub mod hints;

@@ -4,6 +4,7 @@ use bevy_tweening::TweeningPlugin;
 
 mod camera;
 mod components;
+#[cfg(not(target_arch = "wasm32"))]
 mod debug;
 mod game_data;
 mod hints;
@@ -38,8 +39,8 @@ impl Resource for Page {}
 impl Resource for AppState {}
 
 fn main() {
-    App::new()
-        .add_plugins(DefaultPlugins
+    let mut app = App::new();
+    app.add_plugins(DefaultPlugins
             .set(WindowPlugin {
                 primary_window: Some(Window {
                     title: "LitAdventure".into(),
@@ -67,7 +68,6 @@ fn main() {
         .add_plugins(game_data::GameDataPlugin)
         .add_plugins(save::SavePlugin)
         .add_plugins(item_preview::ItemPreviewPlugin)
-        .add_plugins(debug::DebugPlugin)
         .register_type::<components::Clickable>()
         .register_type::<components::CameraSpot>()
         .register_type::<components::InventoryItem>()
@@ -96,8 +96,12 @@ fn main() {
                 handle_game_won,
                 handle_game_over,
             ),
-        )
-        .run();
+        );
+
+    #[cfg(not(target_arch = "wasm32"))]
+    app.add_plugins(debug::DebugPlugin);
+
+    app.run();
 }
 
 // -- One-time UI initialization --

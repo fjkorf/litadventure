@@ -4,10 +4,27 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bevy = "0.18.1"
+bevy = { version = "0.18.1", default-features = false, features = [
+    # App infrastructure
+    "async_executor", "bevy_asset", "bevy_input_focus",
+    "bevy_log", "bevy_state", "bevy_window", "reflect_auto_register",
+    # 3D rendering
+    "bevy_render", "bevy_core_pipeline", "bevy_pbr",
+    "bevy_gltf", "bevy_post_process", "gltf_animation", "bevy_anti_alias",
+    # 3D geometry + materials
+    "bevy_camera", "bevy_color", "bevy_image", "bevy_mesh",
+    "bevy_shader", "bevy_light", "bevy_mikktspace",
+    "tonemapping_luts", "smaa_luts", "png",
+    # Picking (mesh only)
+    "bevy_picking", "mesh_picking",
+    # Scene
+    "bevy_scene",
+    # Platform
+    "std", "bevy_winit",
+]}
 litui = { path = "../egui-md-macro/crates/litui" }
 egui = "0.33"
-egui_extras = { version = "0.33", features = ["all_loaders"] }
+egui_extras = { version = "0.33", features = ["image"] }
 bevy_egui = "0.39"
 bevy_tweening = "0.15"
 bevy_common_assets = { version = "0.15", features = ["ron"] }
@@ -16,26 +33,31 @@ serde = { version = "1", features = ["derive"] }
 ron = "0.9"
 image = { version = "0.25", default-features = false, features = ["png"] }
 
-# Native-only: file watching for hot-reload during development
+# Native-only: file watching, debug gizmos
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-bevy = { version = "0.18.1", features = ["file_watcher"] }
+bevy = { version = "0.18.1", default-features = false, features = [
+    "file_watcher",
+    "bevy_gizmos", "bevy_gizmos_render",
+]}
 
-# WASM: WebGL2 rendering + web-sys for localStorage save/load
+# WASM: WebGL2 + localStorage
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-bevy = { version = "0.18.1", features = ["webgl2"] }
+bevy = { version = "0.18.1", default-features = false, features = ["webgl2"] }
 web-sys = { version = "0.3", features = ["Window", "Storage"] }
 
-# getrandom WASM support (both v0.2 and v0.3 needed by transitive deps)
+# getrandom WASM support
 [target.'cfg(all(target_family = "wasm", any(target_os = "unknown", target_os = "none")))'.dependencies]
 getrandom_02 = { version = "0.2", features = ["js"], package = "getrandom" }
 getrandom = { version = "0.3", features = ["wasm_js"] }
 
-# WASM-optimized release profile
+# Optimized WASM release profile
 [profile.wasm-release]
 inherits = "release"
 opt-level = "z"
-lto = "thin"
+lto = true
+codegen-units = 1
 strip = "debuginfo"
+panic = "abort"
 
 [[example]]
 name = "screenshot_test"
