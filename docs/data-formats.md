@@ -185,6 +185,36 @@ Save files are written to `assets/saves/game_save.ron` when the player clicks Sa
 
 This file should not be hand-edited. It's managed by the save/load system (`src/save.rs`).
 
+## keybindings.ron
+
+Defines rebindable keyboard input bindings. Located at `assets/settings/keybindings.ron`.
+
+```ron
+(
+    back: "Escape",
+    return_to_center: "Space",
+    pause: "KeyP",
+    cycle_next: "Tab",
+    confirm: "Enter",
+    debug_overlay: "F1",
+)
+```
+
+**Fields**:
+
+| Field | Default | Action |
+|-------|---------|--------|
+| `back` | `"Escape"` | Navigate back / cancel |
+| `return_to_center` | `"Space"` | Return camera to room center |
+| `pause` | `"KeyP"` | Toggle pause |
+| `cycle_next` | `"Tab"` | Focus next clickable (Shift+Tab for previous) |
+| `confirm` | `"Enter"` | Confirm action on focused object |
+| `debug_overlay` | `"F1"` | Toggle debug overlay (native only) |
+
+Key names use Bevy's `KeyCode` variant names: `"KeyA"` through `"KeyZ"`, `"Digit1"` through `"Digit5"`, `"Escape"`, `"Space"`, `"Enter"`, `"Tab"`, `"F1"` through `"F5"`, `"ArrowUp/Down/Left/Right"`, etc.
+
+Hot-reloadable on native (via `file_watcher`). Changes take effect without recompilation.
+
 ## Adding New Data
 
 To add a new objective, add an entry to `objectives.ron`, optionally add hints for it in `hints.ron`, and ensure something triggers its completion (an item requirement, a navigation requirement, or a manual `ObjectiveCompleted` message from the interaction system).

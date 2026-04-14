@@ -18,7 +18,9 @@
         4,
         5,
         6,
-        7
+        7,
+        8,
+        9
       ]
     }
   ],
@@ -55,7 +57,7 @@
             {
               "litadventure::components::Clickable": {
                 "label": "Painting",
-                "description": "A faded landscape painting. Something is written on the back: '42'."
+                "description": "A faded landscape painting. Something is written on the back: '42'. What could it mean?"
               }
             }
           ]
@@ -119,8 +121,36 @@
       }
     },
     {
-      "name": "LockedDoor",
+      "name": "OilCan",
       "mesh": 5,
+      "translation": [
+        2,
+        0.5,
+        -13
+      ],
+      "extensions": {
+        "BEVY_skein": {
+          "components": [
+            {
+              "litadventure::components::Clickable": {
+                "label": "Oil Can",
+                "description": "A small can of machine oil. Still half full."
+              }
+            },
+            {
+              "litadventure::components::InventoryItem": {
+                "name": "Oil Can",
+                "description": "A can of machine oil.",
+                "item_id": "oil"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "CellarDoor",
+      "mesh": 6,
       "translation": [
         2.5,
         1,
@@ -131,8 +161,8 @@
           "components": [
             {
               "litadventure::components::Clickable": {
-                "label": "Locked Door",
-                "description": "A heavy door. It's too dark to see the lock clearly."
+                "label": "Cellar Door",
+                "description": "A heavy iron door. The lock is rusted shut."
               }
             },
             {
@@ -140,9 +170,37 @@
             },
             {
               "litadventure::components::RequiresItem": {
-                "item_id": "flashlight",
-                "use_message": "You shine the flashlight on the lock. It clicks open.",
-                "fail_message": "It's too dark to see the lock clearly."
+                "item_id": "oiled_key",
+                "use_message": "The oiled key turns smoothly in the rusted lock. The cellar door opens.",
+                "fail_message": "The lock is rusted shut. You need something to loosen it.",
+                "completes_objective": "enter_cellar"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "AtticDoor",
+      "mesh": 7,
+      "translation": [
+        -2.5,
+        0.9,
+        -18
+      ],
+      "extensions": {
+        "BEVY_skein": {
+          "components": [
+            {
+              "litadventure::components::Clickable": {
+                "label": "Attic Door",
+                "description": "A narrow door. Stairs lead up into darkness."
+              }
+            },
+            {
+              "litadventure::navigation::Portal": {
+                "target_room": "attic",
+                "entry_spot": "attic_overview"
               }
             }
           ]
@@ -175,7 +233,7 @@
     },
     {
       "name": "DoorToStudy",
-      "mesh": 6,
+      "mesh": 8,
       "translation": [
         -2.5,
         1,
@@ -268,7 +326,7 @@
       ]
     },
     {
-      "name": "LockedDoorMesh",
+      "name": "OilCanMesh",
       "primitives": [
         {
           "attributes": {
@@ -281,7 +339,7 @@
       ]
     },
     {
-      "name": "DoorToStudyMesh",
+      "name": "CellarDoorMesh",
       "primitives": [
         {
           "attributes": {
@@ -290,6 +348,32 @@
           },
           "indices": 18,
           "material": 6
+        }
+      ]
+    },
+    {
+      "name": "AtticDoorMesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 22,
+            "NORMAL": 23
+          },
+          "indices": 21,
+          "material": 7
+        }
+      ]
+    },
+    {
+      "name": "DoorToStudyMesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 25,
+            "NORMAL": 26
+          },
+          "indices": 24,
+          "material": 8
         }
       ]
     }
@@ -361,12 +445,38 @@
       }
     },
     {
-      "name": "LockedDoorMat",
+      "name": "OilMat",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.3,
+          0.35,
+          0.3,
+          1.0
+        ],
+        "metallicFactor": 0.1,
+        "roughnessFactor": 0.8
+      }
+    },
+    {
+      "name": "CellarDoorMat",
       "pbrMetallicRoughness": {
         "baseColorFactor": [
           0.3,
           0.2,
           0.1,
+          1.0
+        ],
+        "metallicFactor": 0.1,
+        "roughnessFactor": 0.8
+      }
+    },
+    {
+      "name": "AtticDoorMat",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.45,
+          0.35,
+          0.2,
           1.0
         ],
         "metallicFactor": 0.1,
@@ -561,10 +671,10 @@
     {
       "bufferView": 15,
       "componentType": 5123,
-      "count": 36,
+      "count": 144,
       "type": "SCALAR",
       "max": [
-        23
+        49
       ],
       "min": [
         0
@@ -573,23 +683,23 @@
     {
       "bufferView": 16,
       "componentType": 5126,
-      "count": 24,
+      "count": 50,
       "type": "VEC3",
       "max": [
-        0.4,
-        1.0,
-        0.05
+        0.06,
+        0.075,
+        0.06
       ],
       "min": [
-        -0.4,
-        -1.0,
-        -0.05
+        -0.06,
+        -0.075,
+        -0.06
       ]
     },
     {
       "bufferView": 17,
       "componentType": 5126,
-      "count": 24,
+      "count": 50,
       "type": "VEC3"
     },
     {
@@ -622,6 +732,74 @@
     },
     {
       "bufferView": 20,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 21,
+      "componentType": 5123,
+      "count": 36,
+      "type": "SCALAR",
+      "max": [
+        23
+      ],
+      "min": [
+        0
+      ]
+    },
+    {
+      "bufferView": 22,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3",
+      "max": [
+        0.35,
+        0.9,
+        0.05
+      ],
+      "min": [
+        -0.35,
+        -0.9,
+        -0.05
+      ]
+    },
+    {
+      "bufferView": 23,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 24,
+      "componentType": 5123,
+      "count": 36,
+      "type": "SCALAR",
+      "max": [
+        23
+      ],
+      "min": [
+        0
+      ]
+    },
+    {
+      "bufferView": 25,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3",
+      "max": [
+        0.4,
+        1.0,
+        0.05
+      ],
+      "min": [
+        -0.4,
+        -1.0,
+        -0.05
+      ]
+    },
+    {
+      "bufferView": 26,
       "componentType": 5126,
       "count": 24,
       "type": "VEC3"
@@ -721,36 +899,72 @@
     {
       "buffer": 0,
       "byteOffset": 3540,
+      "byteLength": 288,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 3828,
+      "byteLength": 600,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 4428,
+      "byteLength": 600,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 5028,
       "byteLength": 72,
       "target": 34963
     },
     {
       "buffer": 0,
-      "byteOffset": 3612,
+      "byteOffset": 5100,
       "byteLength": 288,
       "target": 34962
     },
     {
       "buffer": 0,
-      "byteOffset": 3900,
+      "byteOffset": 5388,
       "byteLength": 288,
       "target": 34962
     },
     {
       "buffer": 0,
-      "byteOffset": 4188,
+      "byteOffset": 5676,
       "byteLength": 72,
       "target": 34963
     },
     {
       "buffer": 0,
-      "byteOffset": 4260,
+      "byteOffset": 5748,
       "byteLength": 288,
       "target": 34962
     },
     {
       "buffer": 0,
-      "byteOffset": 4548,
+      "byteOffset": 6036,
+      "byteLength": 288,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 6324,
+      "byteLength": 72,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 6396,
+      "byteLength": 288,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 6684,
       "byteLength": 288,
       "target": 34962
     }
@@ -758,7 +972,7 @@
   "buffers": [
     {
       "uri": "hallway.bin",
-      "byteLength": 4836
+      "byteLength": 6972
     }
   ]
 }

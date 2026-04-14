@@ -5,7 +5,14 @@
             item_b: "frame",
             result_id: "magnifying_glass",
             result_name: "Magnifying Glass",
-            result_description: "A small magnifying glass. You can read fine print with this.",
+            result_description: "A small magnifying glass. Perfect for examining tiny details.",
+        ),
+        (
+            item_a: "brass_key",
+            item_b: "oil",
+            result_id: "oiled_key",
+            result_name: "Oiled Key",
+            result_description: "A brass key coated in machine oil. It should turn smoothly now.",
         ),
     ],
 )

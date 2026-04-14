@@ -20,7 +20,11 @@
         6,
         7,
         8,
-        9
+        9,
+        10,
+        11,
+        12,
+        13
       ]
     }
   ],
@@ -145,7 +149,77 @@
             {
               "litadventure::components::Clickable": {
                 "label": "Bookshelf",
-                "description": "Rows of old books. Most are too faded to read."
+                "description": "Rows of old books. A small cabinet is tucked behind them."
+              }
+            },
+            {
+              "litadventure::components::NavigatesTo": {
+                "spot_name": "bookshelf_closeup"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Cabinet",
+      "mesh": 6,
+      "translation": [
+        -3,
+        0.8,
+        -4.2
+      ],
+      "extensions": {
+        "BEVY_skein": {
+          "components": [
+            {
+              "litadventure::components::Clickable": {
+                "label": "Cabinet",
+                "description": "A small wooden cabinet. The lock is tiny \u2014 hard to see."
+              }
+            },
+            {
+              "litadventure::components::ObjectState": "Locked"
+            },
+            {
+              "litadventure::components::RequiresItem": {
+                "item_id": "magnifying_glass",
+                "use_message": "Through the magnifying glass you see the lock clearly. It clicks open.",
+                "fail_message": "The lock mechanism is too small to see with the naked eye.",
+                "completes_objective": "unlock_cabinet"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "BrassKey",
+      "mesh": 7,
+      "translation": [
+        -3,
+        0.85,
+        -4.0
+      ],
+      "extensions": {
+        "BEVY_skein": {
+          "components": [
+            {
+              "litadventure::components::Clickable": {
+                "label": "Brass Key",
+                "description": "A small brass key, tarnished with age."
+              }
+            },
+            {
+              "litadventure::components::InventoryItem": {
+                "name": "Brass Key",
+                "description": "A small brass key.",
+                "item_id": "brass_key"
+              }
+            },
+            {
+              "litadventure::components::ContainedInName": {
+                "container_name": "Cabinet"
               }
             }
           ]
@@ -235,8 +309,66 @@
       }
     },
     {
+      "name": "CameraSpot_BookshelfCloseup",
+      "translation": [
+        -2.5,
+        1.5,
+        -3.0
+      ],
+      "extensions": {
+        "BEVY_skein": {
+          "components": [
+            {
+              "litadventure::components::CameraSpot": {
+                "name": "bookshelf_closeup",
+                "look_at": [
+                  -3.0,
+                  1.0,
+                  -4.5
+                ]
+              }
+            },
+            {
+              "litadventure::components::ParentSpot": {
+                "spot_name": "room_overview"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "CameraSpot_CabinetDetail",
+      "translation": [
+        -2.8,
+        1.0,
+        -3.5
+      ],
+      "extensions": {
+        "BEVY_skein": {
+          "components": [
+            {
+              "litadventure::components::CameraSpot": {
+                "name": "cabinet_detail",
+                "look_at": [
+                  -3.0,
+                  0.8,
+                  -4.2
+                ]
+              }
+            },
+            {
+              "litadventure::components::ParentSpot": {
+                "spot_name": "bookshelf_closeup"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
       "name": "Door",
-      "mesh": 6,
+      "mesh": 8,
       "translation": [
         3,
         1,
@@ -342,7 +474,7 @@
       ]
     },
     {
-      "name": "DoorMesh",
+      "name": "CabinetMesh",
       "primitives": [
         {
           "attributes": {
@@ -351,6 +483,32 @@
           },
           "indices": 18,
           "material": 6
+        }
+      ]
+    },
+    {
+      "name": "BrassKeyMesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 22,
+            "NORMAL": 23
+          },
+          "indices": 21,
+          "material": 7
+        }
+      ]
+    },
+    {
+      "name": "DoorMesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 25,
+            "NORMAL": 26
+          },
+          "indices": 24,
+          "material": 8
         }
       ]
     }
@@ -428,6 +586,32 @@
           0.35,
           0.22,
           0.1,
+          1.0
+        ],
+        "metallicFactor": 0.1,
+        "roughnessFactor": 0.8
+      }
+    },
+    {
+      "name": "CabinetMat",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.4,
+          0.25,
+          0.12,
+          1.0
+        ],
+        "metallicFactor": 0.1,
+        "roughnessFactor": 0.8
+      }
+    },
+    {
+      "name": "KeyMat",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.8,
+          0.7,
+          0.3,
           1.0
         ],
         "metallicFactor": 0.1,
@@ -671,6 +855,74 @@
       "count": 24,
       "type": "VEC3",
       "max": [
+        0.2,
+        0.2,
+        0.15
+      ],
+      "min": [
+        -0.2,
+        -0.2,
+        -0.15
+      ]
+    },
+    {
+      "bufferView": 20,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 21,
+      "componentType": 5123,
+      "count": 36,
+      "type": "SCALAR",
+      "max": [
+        23
+      ],
+      "min": [
+        0
+      ]
+    },
+    {
+      "bufferView": 22,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3",
+      "max": [
+        0.04,
+        0.01,
+        0.015
+      ],
+      "min": [
+        -0.04,
+        -0.01,
+        -0.015
+      ]
+    },
+    {
+      "bufferView": 23,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 24,
+      "componentType": 5123,
+      "count": 36,
+      "type": "SCALAR",
+      "max": [
+        23
+      ],
+      "min": [
+        0
+      ]
+    },
+    {
+      "bufferView": 25,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3",
+      "max": [
         0.4,
         1.0,
         0.05
@@ -682,7 +934,7 @@
       ]
     },
     {
-      "bufferView": 20,
+      "bufferView": 26,
       "componentType": 5126,
       "count": 24,
       "type": "VEC3"
@@ -814,12 +1066,48 @@
       "byteOffset": 4548,
       "byteLength": 288,
       "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 4836,
+      "byteLength": 72,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 4908,
+      "byteLength": 288,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 5196,
+      "byteLength": 288,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 5484,
+      "byteLength": 72,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 5556,
+      "byteLength": 288,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 5844,
+      "byteLength": 288,
+      "target": 34962
     }
   ],
   "buffers": [
     {
       "uri": "study.bin",
-      "byteLength": 4836
+      "byteLength": 6132
     }
   ]
 }

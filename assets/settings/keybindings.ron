@@ -1,0 +1,8 @@
+(
+    back: "Escape",
+    return_to_center: "Space",
+    pause: "KeyP",
+    cycle_next: "Tab",
+    confirm: "Enter",
+    debug_overlay: "F1",
+)

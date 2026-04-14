@@ -12,9 +12,13 @@ pub struct DebugOverlay {
     pub enabled: bool,
 }
 
-/// Toggle debug mode with F1.
-fn toggle_debug(input: Res<ButtonInput<KeyCode>>, mut debug: ResMut<DebugOverlay>) {
-    if input.just_pressed(KeyCode::F1) {
+/// Toggle debug mode with configurable key (default F1).
+fn toggle_debug(
+    input: Res<ButtonInput<KeyCode>>,
+    config: Res<crate::input_config::InputConfig>,
+    mut debug: ResMut<DebugOverlay>,
+) {
+    if input.just_pressed(config.debug_overlay) {
         debug.enabled = !debug.enabled;
     }
 }

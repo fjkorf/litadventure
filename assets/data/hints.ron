@@ -15,15 +15,45 @@
             "Look for a way out of the study.",
             "Click the door on the right wall.",
         ),
-        "unlock_door": (
-            "You have what you need.",
-            "Shine some light on it.",
-            "Click the locked door while holding the flashlight.",
+        "collect_supplies": (
+            "Look around the hallway carefully.",
+            "There are small objects on the floor and shelves.",
+            "Pick up the lens, frame, and oil can in the hallway.",
+        ),
+        "explore_attic": (
+            "A narrow door leads somewhere.",
+            "Be careful — it might be dark up there.",
+            "Make sure you have the flashlight before entering the attic!",
+        ),
+        "create_magnifying_glass": (
+            "Two items in your inventory might fit together.",
+            "The lens and the frame look compatible.",
+            "Drag the lens onto the frame in your inventory.",
+        ),
+        "unlock_cabinet": (
+            "There's a small cabinet hidden behind the bookshelf.",
+            "Go back to the study and examine the bookshelf closely.",
+            "Use the magnifying glass on the cabinet behind the bookshelf.",
+        ),
+        "get_brass_key": (
+            "Something is inside the cabinet.",
+            "Look inside the unlocked cabinet.",
+            "Pick up the brass key from inside the cabinet.",
+        ),
+        "prepare_cellar_key": (
+            "The brass key alone won't work on the rusted lock.",
+            "You need to lubricate it somehow.",
+            "Drag the brass key onto the oil can to make an oiled key.",
+        ),
+        "enter_cellar": (
+            "The cellar door is in the hallway.",
+            "Use the oiled key on the heavy iron door.",
+            "Click the cellar door in the hallway with the oiled key in your inventory.",
         ),
         "escape": (
-            "The way is open now.",
-            "The unlocked door awaits.",
-            "Click the unlocked door to escape.",
+            "You're almost there.",
+            "The exit is right in front of you.",
+            "Click the exit door in the cellar.",
         ),
     },
     tier_thresholds: (30.0, 60.0, 90.0),

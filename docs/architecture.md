@@ -23,6 +23,8 @@ main.rs ─── Plugins ──┬── CameraPlugin (camera.rs)
          │            ├── NavigationPlugin (navigation.rs)
          │            ├── StatesPlugin (states.rs)
          │            ├── GameDataPlugin (game_data.rs)
+         │            ├── InputConfigPlugin (input_config.rs)
+         │            ├── InputIntentPlugin (input_intent.rs)
          │            ├── DebugPlugin (debug.rs)
          │            ├── SkeinPlugin (bevy_skein)
          │            ├── MeshPickingPlugin (bevy)
@@ -71,6 +73,8 @@ Title also supports: Continue button ──> Load save ──> GameState::Loadin
 Player clicks 3D object
     │
     ├─ Pointer<Click> observer fires on_click()
+    │
+    ├─ [Input guarded by EguiWantsInput — egui panels block 3D clicks]
     │
     ├─ Entity has Portal? ──> PortalApproachRequested ──> three-stage tween (see below)
     │
@@ -180,3 +184,41 @@ On load, `PendingEntityStates` holds the saved entity states. `apply_pending_ent
 - Restores `ObjectState` on named entities (e.g., Drawer → Open)
 - Reveals contained items if their container is Open
 - Hides collected items and removes their `Clickable` component
+
+## Input Abstraction
+
+Input is processed in two tiers:
+
+### Tier 1: InputIntent (input_intent.rs)
+
+`produce_input_intents` runs in `PreUpdate`, reads raw `ButtonInput<KeyCode>` + `ButtonInput<MouseButton>`, consults `InputConfig` for rebindable keys, guards with `EguiWantsInput`, and emits `InputIntent` messages:
+
+| Intent | Default Triggers |
+|--------|-----------------|
+| `CancelOrBack` | Escape, right-click |
+| `ReturnToCenter` | Space |
+| `TogglePause` | P |
+| `CycleNext` | Tab |
+| `CyclePrev` | Shift+Tab |
+| `ConfirmFocused` | Enter, dwell-click |
+
+### Tier 2: Game Systems
+
+Systems consume `MessageReader<InputIntent>` instead of raw `ButtonInput`:
+- `handle_back_navigation` ← `CancelOrBack`
+- `handle_return_to_center` ← `ReturnToCenter`
+- `toggle_pause` ← `TogglePause` + `CancelOrBack` (at room root)
+- `handle_cycle_intent` ← `CycleNext` / `CyclePrev` (Tab through clickable objects)
+- `handle_confirm_intent` ← `ConfirmFocused` (keyboard/dwell confirm on focused object)
+
+The `on_click` observer remains pointer-driven (Pointer<Click>), guarded by `EguiWantsInput.wants_any_pointer_input()`.
+
+### Rebindable Keys (input_config.rs)
+
+`InputConfig` resource loaded from `assets/settings/keybindings.ron`. String-based key names parsed to `KeyCode` at load time. Hot-reloadable on native via `file_watcher`.
+
+### Accessibility Features
+
+- **Tab cycling**: `FocusedClickable` resource tracks focused entity. Tab/Shift-Tab cycles through visible `Clickable` entities with emissive highlight.
+- **Click-to-select combine**: Click inventory item to select (gold border), click second to auto-combine. Parallel path to drag-drop.
+- **Dwell-click**: `DwellClickSettings` resource (disabled by default). Hovering over a clickable for N seconds fires `ConfirmFocused`.

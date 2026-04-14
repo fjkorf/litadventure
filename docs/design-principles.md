@@ -106,10 +106,21 @@ These games informed the design:
 | Riven Remake (2024) | Accessibility, screenshot annotation |
 | Lorelei and the Laser Eyes (2024) | UI minimalism, non-linear puzzles |
 
-## Accessibility (Planned)
+## Accessibility
 
-Not yet implemented but part of the roadmap:
+### Implemented
+- **Rebindable controls** via `assets/settings/keybindings.ron` (hot-reloadable)
+- **Tab navigation** through clickable objects with emissive focus highlight
+- **Enter key** to confirm action on focused object (full keyboard-only play)
+- **Click-to-select** inventory combine (gold border selection, no drag required)
+- **Dwell-click** (hover-to-click) for motor accessibility (configurable duration, disabled by default)
+- **EguiWantsInput guards** preventing input double-handling between UI and 3D scene
+- **InputIntent abstraction** decoupling raw input from game logic (enables future gamepad/touch/switch access)
+
+### Still Planned
 - Colorblind modes (player-chosen colors, not just filters)
 - Subtitle/font size options
-- Rebindable controls
 - Difficulty options (hint frequency: off / patient / normal / eager)
+- Gamepad support via InputIntent layer
+- Switch access (auto-scan + single-button confirm)
+- Screen reader integration via egui AccessKit

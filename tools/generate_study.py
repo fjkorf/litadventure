@@ -307,8 +307,11 @@ def object_state(state):
 def contained_in_name(container_name):
     return ("litadventure::components::ContainedInName", {"container_name": container_name})
 
-def requires_item(item_id, use_msg, fail_msg):
-    return ("litadventure::components::RequiresItem", {"item_id": item_id, "use_message": use_msg, "fail_message": fail_msg})
+def requires_item(item_id, use_msg, fail_msg, completes_objective=""):
+    return ("litadventure::components::RequiresItem", {
+        "item_id": item_id, "use_message": use_msg, "fail_message": fail_msg,
+        "completes_objective": completes_objective,
+    })
 
 def portal(target_room, entry_spot):
     return ("litadventure::navigation::Portal", {"target_room": target_room, "entry_spot": entry_spot})
@@ -323,7 +326,7 @@ def tween_config(open_offset, duration_ms):
 # -- Build the scenes --
 
 def build_study():
-    """Build the study room scene."""
+    """Room 1: The Study — starting room with desk, drawer, flashlight, bookshelf, cabinet."""
     g = GltfBuilder()
 
     floor_mat = g.add_material(0.3, 0.25, 0.2, "FloorMat")
@@ -332,8 +335,11 @@ def build_study():
     drawer_mat = g.add_material(0.5, 0.35, 0.18, "DrawerMat")
     flashlight_mat = g.add_material(0.7, 0.7, 0.2, "FlashlightMat")
     bookshelf_mat = g.add_material(0.35, 0.22, 0.1, "BookshelfMat")
+    cabinet_mat = g.add_material(0.4, 0.25, 0.12, "CabinetMat")
+    key_mat = g.add_material(0.8, 0.7, 0.3, "KeyMat")
     door_mat = g.add_material(0.4, 0.28, 0.12, "DoorMat")
 
+    # Geometry
     pos, nrm, idx = plane_mesh(10.0, 10.0)
     mesh = g.add_mesh(pos, nrm, idx, floor_mat, "FloorMesh")
     g.add_node("Floor", mesh)
@@ -342,6 +348,7 @@ def build_study():
     mesh = g.add_mesh(pos, nrm, idx, wall_mat, "BackWallMesh")
     g.add_node("BackWall", mesh, translation=[0, 2.5, -5])
 
+    # Desk
     pos, nrm, idx = box_mesh(2.0, 0.8, 1.0)
     mesh = g.add_mesh(pos, nrm, idx, desk_mat, "DeskMesh")
     g.add_node("Desk", mesh, translation=[0, 0.8, -2],
@@ -350,6 +357,7 @@ def build_study():
                    navigates_to("desk_closeup"),
                ))
 
+    # Drawer (container with flashlight inside)
     pos, nrm, idx = box_mesh(0.6, 0.2, 0.4)
     mesh = g.add_mesh(pos, nrm, idx, drawer_mat, "DrawerMesh")
     g.add_node("Drawer", mesh, translation=[0, 0.55, -1.3],
@@ -359,6 +367,7 @@ def build_study():
                    tween_config([0, 0, 0.4], 400),
                ))
 
+    # Flashlight (hidden inside drawer)
     pos, nrm, idx = cylinder_mesh(0.05, 0.3)
     mesh = g.add_mesh(pos, nrm, idx, flashlight_mat, "FlashlightMesh")
     g.add_node("Flashlight", mesh, translation=[0, 0.7, -1.4],
@@ -368,13 +377,39 @@ def build_study():
                    contained_in_name("Drawer"),
                ))
 
+    # Bookshelf (navigates to closeup where cabinet is visible)
     pos, nrm, idx = box_mesh(1.5, 3.0, 0.4)
     mesh = g.add_mesh(pos, nrm, idx, bookshelf_mat, "BookshelfMesh")
     g.add_node("Bookshelf", mesh, translation=[-3, 1.5, -4.5],
                components=skein(
-                   clickable("Bookshelf", "Rows of old books. Most are too faded to read."),
+                   clickable("Bookshelf", "Rows of old books. A small cabinet is tucked behind them."),
+                   navigates_to("bookshelf_closeup"),
                ))
 
+    # Cabinet (locked, needs magnifying glass to see the tiny lock)
+    pos, nrm, idx = box_mesh(0.4, 0.4, 0.3)
+    mesh = g.add_mesh(pos, nrm, idx, cabinet_mat, "CabinetMesh")
+    g.add_node("Cabinet", mesh, translation=[-3, 0.8, -4.2],
+               components=skein(
+                   clickable("Cabinet", "A small wooden cabinet. The lock is tiny — hard to see."),
+                   object_state("Locked"),
+                   requires_item("magnifying_glass",
+                                 "Through the magnifying glass you see the lock clearly. It clicks open.",
+                                 "The lock mechanism is too small to see with the naked eye.",
+                                 "unlock_cabinet"),
+               ))
+
+    # Brass Key (hidden inside cabinet)
+    pos, nrm, idx = box_mesh(0.08, 0.02, 0.03)
+    mesh = g.add_mesh(pos, nrm, idx, key_mat, "BrassKeyMesh")
+    g.add_node("BrassKey", mesh, translation=[-3, 0.85, -4.0],
+               components=skein(
+                   clickable("Brass Key", "A small brass key, tarnished with age."),
+                   inventory_item("Brass Key", "A small brass key.", "brass_key"),
+                   contained_in_name("Cabinet"),
+               ))
+
+    # Camera spots
     g.add_node("CameraSpot_RoomOverview", translation=[0, 3, 6],
                components=skein(camera_spot("room_overview", [0, 1, 0])))
 
@@ -390,6 +425,19 @@ def build_study():
                    parent_spot("desk_closeup"),
                ))
 
+    g.add_node("CameraSpot_BookshelfCloseup", translation=[-2.5, 1.5, -3.0],
+               components=skein(
+                   camera_spot("bookshelf_closeup", [-3, 1.0, -4.5]),
+                   parent_spot("room_overview"),
+               ))
+
+    g.add_node("CameraSpot_CabinetDetail", translation=[-2.8, 1.0, -3.5],
+               components=skein(
+                   camera_spot("cabinet_detail", [-3, 0.8, -4.2]),
+                   parent_spot("bookshelf_closeup"),
+               ))
+
+    # Door to hallway
     pos, nrm, idx = box_mesh(0.8, 2.0, 0.1)
     mesh = g.add_mesh(pos, nrm, idx, door_mat, "DoorMesh")
     g.add_node("Door", mesh, translation=[3, 1, -4.9],
@@ -402,7 +450,7 @@ def build_study():
 
 
 def build_hallway():
-    """Build the hallway room scene."""
+    """Room 2: The Hallway — hub with painting clue, items, and doors to attic + cellar."""
     g = GltfBuilder()
 
     floor_mat = g.add_material(0.25, 0.2, 0.18, "HallwayFloorMat")
@@ -410,9 +458,12 @@ def build_hallway():
     painting_mat = g.add_material(0.2, 0.3, 0.5, "PaintingMat")
     lens_mat = g.add_material(0.6, 0.8, 0.9, "LensMat")
     frame_mat = g.add_material(0.5, 0.4, 0.2, "FrameMat")
-    locked_door_mat = g.add_material(0.3, 0.2, 0.1, "LockedDoorMat")
+    oil_mat = g.add_material(0.3, 0.35, 0.3, "OilMat")
+    cellar_door_mat = g.add_material(0.3, 0.2, 0.1, "CellarDoorMat")
+    attic_door_mat = g.add_material(0.45, 0.35, 0.2, "AtticDoorMat")
     door_mat = g.add_material(0.4, 0.28, 0.12, "DoorMat")
 
+    # Floor + walls
     pos, nrm, idx = plane_mesh(6.0, 16.0)
     mesh = g.add_mesh(pos, nrm, idx, floor_mat, "HallwayFloorMesh")
     g.add_node("HallwayFloor", mesh, translation=[0, 0, -14])
@@ -421,13 +472,15 @@ def build_hallway():
     mesh = g.add_mesh(pos, nrm, idx, wall_mat, "HallwayEndWallMesh")
     g.add_node("HallwayEndWall", mesh, translation=[0, 2, -22])
 
+    # Painting (clue: "42" — flavor text hinting at hidden things)
     pos, nrm, idx = box_mesh(0.8, 0.6, 0.05)
     mesh = g.add_mesh(pos, nrm, idx, painting_mat, "PaintingMesh")
     g.add_node("Painting", mesh, translation=[-2.5, 1.8, -14],
                components=skein(
-                   clickable("Painting", "A faded landscape painting. Something is written on the back: '42'."),
+                   clickable("Painting", "A faded landscape painting. Something is written on the back: '42'. What could it mean?"),
                ))
 
+    # Lens (collectible, combines with frame)
     pos, nrm, idx = cylinder_mesh(0.08, 0.02)
     mesh = g.add_mesh(pos, nrm, idx, lens_mat, "LensMesh")
     g.add_node("Lens", mesh, translation=[-2, 0.8, -13.5],
@@ -436,6 +489,7 @@ def build_hallway():
                    inventory_item("Lens", "A small glass lens.", "lens"),
                ))
 
+    # Frame (collectible, combines with lens)
     pos, nrm, idx = box_mesh(0.12, 0.02, 0.06)
     mesh = g.add_mesh(pos, nrm, idx, frame_mat, "FrameMesh")
     g.add_node("Frame", mesh, translation=[1, 0.05, -12],
@@ -444,20 +498,42 @@ def build_hallway():
                    inventory_item("Frame", "A small brass frame.", "frame"),
                ))
 
-    pos, nrm, idx = box_mesh(0.8, 2.0, 0.1)
-    mesh = g.add_mesh(pos, nrm, idx, locked_door_mat, "LockedDoorMesh")
-    g.add_node("LockedDoor", mesh, translation=[2.5, 1, -18],
+    # Oil Can (collectible, combines with brass key)
+    pos, nrm, idx = cylinder_mesh(0.06, 0.15)
+    mesh = g.add_mesh(pos, nrm, idx, oil_mat, "OilCanMesh")
+    g.add_node("OilCan", mesh, translation=[2, 0.5, -13],
                components=skein(
-                   clickable("Locked Door", "A heavy door. It's too dark to see the lock clearly."),
-                   object_state("Locked"),
-                   requires_item("flashlight",
-                                 "You shine the flashlight on the lock. It clicks open.",
-                                 "It's too dark to see the lock clearly."),
+                   clickable("Oil Can", "A small can of machine oil. Still half full."),
+                   inventory_item("Oil Can", "A can of machine oil.", "oil"),
                ))
 
+    # Cellar door (locked, needs oiled key)
+    pos, nrm, idx = box_mesh(0.8, 2.0, 0.1)
+    mesh = g.add_mesh(pos, nrm, idx, cellar_door_mat, "CellarDoorMesh")
+    g.add_node("CellarDoor", mesh, translation=[2.5, 1, -18],
+               components=skein(
+                   clickable("Cellar Door", "A heavy iron door. The lock is rusted shut."),
+                   object_state("Locked"),
+                   requires_item("oiled_key",
+                                 "The oiled key turns smoothly in the rusted lock. The cellar door opens.",
+                                 "The lock is rusted shut. You need something to loosen it.",
+                                 "enter_cellar"),
+               ))
+
+    # Attic door (free portal — one way, no lock)
+    pos, nrm, idx = box_mesh(0.7, 1.8, 0.1)
+    mesh = g.add_mesh(pos, nrm, idx, attic_door_mat, "AtticDoorMesh")
+    g.add_node("AtticDoor", mesh, translation=[-2.5, 0.9, -18],
+               components=skein(
+                   clickable("Attic Door", "A narrow door. Stairs lead up into darkness."),
+                   portal("attic", "attic_overview"),
+               ))
+
+    # Camera spot
     g.add_node("CameraSpot_HallwayOverview", translation=[0, 2.5, -8],
                components=skein(camera_spot("hallway_overview", [0, 1, -14])))
 
+    # Door back to study
     pos, nrm, idx = box_mesh(0.8, 2.0, 0.1)
     mesh = g.add_mesh(pos, nrm, idx, door_mat, "DoorToStudyMesh")
     g.add_node("DoorToStudy", mesh, translation=[-2.5, 1, -8.5],
@@ -469,14 +545,102 @@ def build_hallway():
     return g
 
 
+def build_attic():
+    """Room 3: The Attic — dead end. No portal back. Game over trap if entered without flashlight."""
+    g = GltfBuilder()
+
+    floor_mat = g.add_material(0.2, 0.18, 0.15, "AtticFloorMat")
+    wall_mat = g.add_material(0.35, 0.3, 0.25, "AtticWallMat")
+    trunk_mat = g.add_material(0.3, 0.22, 0.12, "TrunkMat")
+    letter_mat = g.add_material(0.7, 0.65, 0.5, "LetterMat")
+
+    # Floor + walls
+    pos, nrm, idx = plane_mesh(4.0, 4.0)
+    mesh = g.add_mesh(pos, nrm, idx, floor_mat, "AtticFloorMesh")
+    g.add_node("AtticFloor", mesh)
+
+    pos, nrm, idx = box_mesh(4.0, 3.0, 0.1)
+    mesh = g.add_mesh(pos, nrm, idx, wall_mat, "AtticWallMesh")
+    g.add_node("AtticWall", mesh, translation=[0, 1.5, -2])
+
+    # Dusty trunk (locked, needs flashlight — game over if you don't have it)
+    pos, nrm, idx = box_mesh(0.6, 0.4, 0.4)
+    mesh = g.add_mesh(pos, nrm, idx, trunk_mat, "TrunkMesh")
+    g.add_node("DustyTrunk", mesh, translation=[0, 0.2, -1.5],
+               components=skein(
+                   clickable("Dusty Trunk", "An old trunk covered in cobwebs. It's pitch dark up here."),
+                   object_state("Locked"),
+                   requires_item("flashlight",
+                                 "You shine the flashlight into the trunk. Inside: a faded photograph and a note reading 'The exit is below.'",
+                                 "It's pitch dark. You can't see anything without a light source.",
+                                 ""),
+               ))
+
+    # Old letter (flavor text)
+    pos, nrm, idx = box_mesh(0.15, 0.01, 0.1)
+    mesh = g.add_mesh(pos, nrm, idx, letter_mat, "LetterMesh")
+    g.add_node("OldLetter", mesh, translation=[1, 0.05, -0.5],
+               components=skein(
+                   clickable("Old Letter", "A yellowed letter. The ink has faded beyond reading."),
+               ))
+
+    # Camera spot — NO portal back! Dead end.
+    g.add_node("CameraSpot_AtticOverview", translation=[0, 2, 2],
+               components=skein(camera_spot("attic_overview", [0, 0.5, -1])))
+
+    return g
+
+
+def build_cellar():
+    """Room 4: The Cellar — victory room. Exit door triggers GameWon."""
+    g = GltfBuilder()
+
+    floor_mat = g.add_material(0.15, 0.15, 0.18, "CellarFloorMat")
+    wall_mat = g.add_material(0.3, 0.28, 0.32, "CellarWallMat")
+    exit_door_mat = g.add_material(0.5, 0.45, 0.3, "ExitDoorMat")
+    door_mat = g.add_material(0.4, 0.28, 0.12, "DoorMat")
+
+    # Floor + walls
+    pos, nrm, idx = plane_mesh(5.0, 5.0)
+    mesh = g.add_mesh(pos, nrm, idx, floor_mat, "CellarFloorMesh")
+    g.add_node("CellarFloor", mesh)
+
+    pos, nrm, idx = box_mesh(5.0, 3.5, 0.1)
+    mesh = g.add_mesh(pos, nrm, idx, wall_mat, "CellarWallMesh")
+    g.add_node("CellarWall", mesh, translation=[0, 1.75, -2.5])
+
+    # Exit door (Unlocked — clicking triggers GameWon)
+    pos, nrm, idx = box_mesh(1.0, 2.2, 0.1)
+    mesh = g.add_mesh(pos, nrm, idx, exit_door_mat, "ExitDoorMesh")
+    g.add_node("ExitDoor", mesh, translation=[0, 1.1, -2.4],
+               components=skein(
+                   clickable("Exit Door", "A heavy door with light streaming through the cracks. Freedom is just beyond."),
+                   object_state("Unlocked"),
+               ))
+
+    # Door back to hallway (optional — player already solved the game to get here)
+    pos, nrm, idx = box_mesh(0.8, 2.0, 0.1)
+    mesh = g.add_mesh(pos, nrm, idx, door_mat, "DoorToHallwayMesh")
+    g.add_node("DoorToHallway", mesh, translation=[2, 1, 2],
+               components=skein(
+                   clickable("Door", "The door back to the hallway."),
+                   portal("hallway", "hallway_overview"),
+               ))
+
+    # Camera spot
+    g.add_node("CameraSpot_CellarOverview", translation=[0, 2, 3],
+               components=skein(camera_spot("cellar_overview", [0, 1, -1])))
+
+    return g
+
+
 if __name__ == "__main__":
     out_dir = os.path.join(os.path.dirname(__file__), "..", "assets", "scenes")
     os.makedirs(out_dir, exist_ok=True)
 
-    study = build_study()
-    study.write_gltf(os.path.join(out_dir, "study.gltf"))
-    study.write_glb(os.path.join(out_dir, "study.glb"))
-
-    hallway = build_hallway()
-    hallway.write_gltf(os.path.join(out_dir, "hallway.gltf"))
-    hallway.write_glb(os.path.join(out_dir, "hallway.glb"))
+    for name, builder in [("study", build_study), ("hallway", build_hallway),
+                           ("attic", build_attic), ("cellar", build_cellar)]:
+        scene = builder()
+        scene.write_gltf(os.path.join(out_dir, f"{name}.gltf"))
+        scene.write_glb(os.path.join(out_dir, f"{name}.glb"))
+        print()

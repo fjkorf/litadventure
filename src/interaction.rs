@@ -1,10 +1,12 @@
 use bevy::prelude::*;
 use bevy::picking::events::{Click, Out, Over, Pointer};
+use bevy_egui::input::EguiWantsInput;
 
 use crate::camera::{
     find_spot_by_name, start_camera_tween, CameraController, PlayerCamera,
 };
 use crate::components::*;
+use crate::input_intent::InputIntent;
 use crate::inventory::{Inventory, ItemPickedUp};
 use crate::navigation::{Portal, PortalApproachRequested};
 use crate::objectives::ObjectiveCompleted;
@@ -43,17 +45,20 @@ pub struct GameOver;
 
 /// Original emissive stored on hover so we can restore it.
 #[derive(Component)]
-struct OriginalEmissive(LinearRgba);
+pub struct OriginalEmissive(pub LinearRgba);
 
 /// Handles clicks on any entity — filters for Clickable component.
 fn on_click(
     event: On<Pointer<Click>>,
+    egui_input: Res<EguiWantsInput>,
     clickable_q: Query<(
         &Clickable,
         Option<&NavigatesTo>,
         Option<&InventoryItem>,
         Option<&Portal>,
         Option<&RequiresItem>,
+        Option<&TweenConfig>,
+        &Transform,
     )>,
     camera_q: Query<(Entity, &Transform), With<PlayerCamera>>,
     spot_q: Query<(&CameraSpot, &GlobalTransform, Entity)>,
@@ -68,11 +73,17 @@ fn on_click(
     mut win_events: MessageWriter<GameWon>,
     mut contained_q: Query<(Entity, &ContainedIn, &mut Visibility)>,
     mut state_q: Query<&mut ObjectState>,
-    tween_q: Query<(&Transform, &TweenConfig)>,
     mut commands: Commands,
 ) {
+    // Don't process clicks when egui is consuming pointer input
+    if egui_input.wants_any_pointer_input() {
+        return;
+    }
+
     let entity = event.event_target();
-    let Ok((clickable, nav, inv_item, portal, requires)) = clickable_q.get(entity) else {
+    let Ok((clickable, nav, inv_item, portal, requires, tween_cfg, entity_transform)) =
+        clickable_q.get(entity)
+    else {
         return;
     };
     let obj_state = state_q.get(entity).ok().map(|s| *s);
@@ -119,9 +130,11 @@ fn on_click(
                             *state = ObjectState::Unlocked;
                         }
                         feedback.0 = req.use_message.clone();
-                        objective_events.write(ObjectiveCompleted {
-                            id: "unlock_door".into(),
-                        });
+                        if !req.completes_objective.is_empty() {
+                            objective_events.write(ObjectiveCompleted {
+                                id: req.completes_objective.clone(),
+                            });
+                        }
                     } else {
                         feedback.0 = req.fail_message.clone();
                     }
@@ -148,13 +161,13 @@ fn on_click(
                     }
                 }
 
-                if let Ok((transform, tween_cfg)) = tween_q.get(entity) {
-                    let start = transform.translation;
-                    let end = start + tween_cfg.open_offset;
+                if let Some(tc) = tween_cfg {
+                    let start = entity_transform.translation;
+                    let end = start + tc.open_offset;
                     commands.entity(entity).insert(
                         bevy_tweening::TweenAnim::new(bevy_tweening::Tween::new(
                             EaseFunction::CubicOut,
-                            std::time::Duration::from_millis(tween_cfg.duration_ms as u64),
+                            std::time::Duration::from_millis(tc.duration_ms as u64),
                             bevy_tweening::lens::TransformPositionLens { start, end },
                         )),
                     );
@@ -173,13 +186,13 @@ fn on_click(
                     }
                 }
 
-                if let Ok((transform, tween_cfg)) = tween_q.get(entity) {
-                    let start = transform.translation;
-                    let end = start - tween_cfg.open_offset;
+                if let Some(tc) = tween_cfg {
+                    let start = entity_transform.translation;
+                    let end = start - tc.open_offset;
                     commands.entity(entity).insert(
                         bevy_tweening::TweenAnim::new(bevy_tweening::Tween::new(
                             EaseFunction::CubicOut,
-                            std::time::Duration::from_millis(tween_cfg.duration_ms as u64),
+                            std::time::Duration::from_millis(tc.duration_ms as u64),
                             bevy_tweening::lens::TransformPositionLens { start, end },
                         )),
                     );
@@ -237,10 +250,9 @@ fn finish_transition(
     }
 }
 
-/// Handle back-navigation (Escape key or right-click).
+/// Handle back-navigation via InputIntent::CancelOrBack.
 fn handle_back_navigation(
-    input: Res<ButtonInput<KeyCode>>,
-    mouse: Res<ButtonInput<MouseButton>>,
+    mut intents: MessageReader<InputIntent>,
     camera_q: Query<(Entity, &Transform), With<PlayerCamera>>,
     spot_q: Query<(&CameraSpot, &GlobalTransform, Entity)>,
     mut play_state: ResMut<PlayState>,
@@ -248,14 +260,11 @@ fn handle_back_navigation(
     mut feedback: ResMut<FeedbackText>,
     mut commands: Commands,
 ) {
-    if camera_ctrl.transitioning {
-        return;
-    }
+    let has_back = intents
+        .read()
+        .any(|i| matches!(i, InputIntent::CancelOrBack));
 
-    let go_back = input.just_pressed(KeyCode::Escape)
-        || mouse.just_pressed(MouseButton::Right);
-
-    if !go_back || !camera_ctrl.can_go_back() {
+    if !has_back || camera_ctrl.transitioning || !camera_ctrl.can_go_back() {
         return;
     }
 
@@ -285,9 +294,9 @@ fn handle_back_navigation(
     );
 }
 
-/// Space key returns the camera to the room's starting spot.
+/// Return camera to room center via InputIntent::ReturnToCenter.
 fn handle_return_to_center(
-    input: Res<ButtonInput<KeyCode>>,
+    mut intents: MessageReader<InputIntent>,
     camera_q: Query<(Entity, &Transform), With<PlayerCamera>>,
     spot_q: Query<(&CameraSpot, &GlobalTransform, Entity)>,
     mut play_state: ResMut<PlayState>,
@@ -297,7 +306,11 @@ fn handle_return_to_center(
     current_room: Res<crate::navigation::CurrentRoom>,
     mut commands: Commands,
 ) {
-    if !input.just_pressed(KeyCode::Space) || camera_ctrl.transitioning {
+    let has_center = intents
+        .read()
+        .any(|i| matches!(i, InputIntent::ReturnToCenter));
+
+    if !has_center || camera_ctrl.transitioning {
         return;
     }
 

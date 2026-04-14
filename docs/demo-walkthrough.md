@@ -47,6 +47,20 @@ When you click a door, the camera moves in three stages:
 
 If you find yourself in a room with no exit (no portal back) and fail a required-item interaction, the Game Over screen appears. Click Restart to return to the title screen. In the current demo, the hallway always has a door back to the study, so game over only triggers if a future room has no exit.
 
+## Keyboard Navigation
+
+All interactions can be performed via keyboard:
+
+1. Press **Tab** to focus the next clickable object (highlighted with emissive glow)
+2. Press **Shift+Tab** to focus the previous object
+3. Press **Enter** to interact with the focused object (same effect as clicking)
+4. Press **Escape** to go back (same as right-click)
+5. Press **Space** to return to the room center
+
+In the inventory panel, click an item to select it (gold border). Click a second item to combine them.
+
+**Dwell-click** (disabled by default): hover over an object for 1.5 seconds to auto-click it. Enable in settings for motor accessibility.
+
 ## Saving and Loading
 
 - Press **P** to pause, then click **Save** to save your progress
@@ -57,10 +71,16 @@ If you find yourself in a room with no exit (no portal back) and fail a required
 
 | Input | Action |
 |-------|--------|
-| Left click | Interact with object |
+| Left click / Enter | Interact with object |
+| Tab / Shift+Tab | Focus next/previous clickable object |
 | Right click / Escape | Go back to previous camera position |
+| Space | Return to room center |
+| Click inventory item | Select for combining (click second to combine) |
+| Drag item onto another | Combine items |
 | P | Pause (opens help overlay) |
-| F1 | Toggle debug overlay |
+| F1 | Toggle debug overlay (native only) |
+
+All keybindings are rebindable via `assets/settings/keybindings.ron`.
 
 ## Hint System
 

@@ -26,9 +26,12 @@ Opens a window with the 3D study scene. UI panels overlay the viewport:
 - **Top**: Room name and description
 - **Right**: Inventory
 - **Bottom**: Feedback text, current objective, hints
+- **Tab / Shift+Tab**: Focus next/previous clickable object
+- **Enter**: Interact with focused object
 - **P key**: Pause (opens help overlay)
 - **F1 key**: Toggle debug overlay (see [debug-mode.md](debug-mode.md))
 - **Escape / Right-click**: Navigate back to previous camera position
+- All keybindings are rebindable via `assets/settings/keybindings.ron`
 
 ## Run Tests
 
@@ -62,6 +65,8 @@ litadventure/
 │   ├── scene.rs            # glTF scene loading, camera/lights setup, ContainedIn resolver
 │   ├── states.rs           # GameState (Title/Loading/Playing/Paused/Won/GameOver)
 │   ├── game_data.rs        # RON asset types, level manifest, loading lifecycle
+│   ├── input_intent.rs     # InputIntent enum, Tab cycling, dwell-click
+│   ├── input_config.rs     # Rebindable key bindings from RON
 │   ├── save.rs             # Save/load game state to/from RON files
 │   └── debug.rs            # F1 debug overlay with wireframe click zones
 ├── content/                # litui markdown UI pages
@@ -83,7 +88,9 @@ litadventure/
 │   ├── scenes/             # glTF scene files (one per room)
 │   │   ├── study.glb (+ study.gltf + study.bin)
 │   │   └── hallway.glb (+ hallway.gltf + hallway.bin)
-│   └── saves/              # Save game files (generated at runtime)
+│   ├── saves/              # Save game files (generated at runtime)
+│   └── settings/           # Configuration files
+│       └── keybindings.ron  # Rebindable key bindings
 ├── tools/
 │   └── generate_study.py   # Python script to generate glTF scenes
 ├── examples/

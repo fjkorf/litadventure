@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::input_intent::InputIntent;
+
 /// Top-level game state.
 #[derive(States, Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum GameState {
@@ -13,7 +15,6 @@ pub enum GameState {
 }
 
 /// System that transitions from Loading to Playing after one frame.
-/// In a real game this would wait for assets to finish loading.
 fn auto_start(
     state: Res<State<GameState>>,
     mut next: ResMut<NextState<GameState>>,
@@ -23,17 +24,29 @@ fn auto_start(
     }
 }
 
-/// Toggle pause with P key, or Escape when at room overview (no back nav available).
+/// Toggle pause via InputIntent::TogglePause or InputIntent::CancelOrBack (at room root).
 fn toggle_pause(
     state: Res<State<GameState>>,
     mut next: ResMut<NextState<GameState>>,
-    input: Res<ButtonInput<KeyCode>>,
+    mut intents: MessageReader<InputIntent>,
     camera_ctrl: Res<crate::camera::CameraController>,
 ) {
-    let p_pressed = input.just_pressed(KeyCode::KeyP);
-    let esc_pressed = input.just_pressed(KeyCode::Escape) && !camera_ctrl.can_go_back();
+    let mut should_toggle = false;
 
-    if !p_pressed && !esc_pressed {
+    for intent in intents.read() {
+        match intent {
+            InputIntent::TogglePause => {
+                should_toggle = true;
+            }
+            InputIntent::CancelOrBack if !camera_ctrl.can_go_back() => {
+                // Escape at room overview = toggle pause
+                should_toggle = true;
+            }
+            _ => {}
+        }
+    }
+
+    if !should_toggle {
         return;
     }
 

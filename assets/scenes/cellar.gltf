@@ -1,0 +1,438 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "litadventure generate_study.py"
+  },
+  "extensionsUsed": [
+    "BEVY_skein"
+  ],
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Study",
+      "nodes": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "CellarFloor",
+      "mesh": 0
+    },
+    {
+      "name": "CellarWall",
+      "mesh": 1,
+      "translation": [
+        0,
+        1.75,
+        -2.5
+      ]
+    },
+    {
+      "name": "ExitDoor",
+      "mesh": 2,
+      "translation": [
+        0,
+        1.1,
+        -2.4
+      ],
+      "extensions": {
+        "BEVY_skein": {
+          "components": [
+            {
+              "litadventure::components::Clickable": {
+                "label": "Exit Door",
+                "description": "A heavy door with light streaming through the cracks. Freedom is just beyond."
+              }
+            },
+            {
+              "litadventure::components::ObjectState": "Unlocked"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "DoorToHallway",
+      "mesh": 3,
+      "translation": [
+        2,
+        1,
+        2
+      ],
+      "extensions": {
+        "BEVY_skein": {
+          "components": [
+            {
+              "litadventure::components::Clickable": {
+                "label": "Door",
+                "description": "The door back to the hallway."
+              }
+            },
+            {
+              "litadventure::navigation::Portal": {
+                "target_room": "hallway",
+                "entry_spot": "hallway_overview"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "CameraSpot_CellarOverview",
+      "translation": [
+        0,
+        2,
+        3
+      ],
+      "extensions": {
+        "BEVY_skein": {
+          "components": [
+            {
+              "litadventure::components::CameraSpot": {
+                "name": "cellar_overview",
+                "look_at": [
+                  0.0,
+                  1.0,
+                  -1.0
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "CellarFloorMesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 1,
+            "NORMAL": 2
+          },
+          "indices": 0,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "name": "CellarWallMesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 4,
+            "NORMAL": 5
+          },
+          "indices": 3,
+          "material": 1
+        }
+      ]
+    },
+    {
+      "name": "ExitDoorMesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 7,
+            "NORMAL": 8
+          },
+          "indices": 6,
+          "material": 2
+        }
+      ]
+    },
+    {
+      "name": "DoorToHallwayMesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 10,
+            "NORMAL": 11
+          },
+          "indices": 9,
+          "material": 3
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "CellarFloorMat",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.15,
+          0.15,
+          0.18,
+          1.0
+        ],
+        "metallicFactor": 0.1,
+        "roughnessFactor": 0.8
+      }
+    },
+    {
+      "name": "CellarWallMat",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.3,
+          0.28,
+          0.32,
+          1.0
+        ],
+        "metallicFactor": 0.1,
+        "roughnessFactor": 0.8
+      }
+    },
+    {
+      "name": "ExitDoorMat",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.5,
+          0.45,
+          0.3,
+          1.0
+        ],
+        "metallicFactor": 0.1,
+        "roughnessFactor": 0.8
+      }
+    },
+    {
+      "name": "DoorMat",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.4,
+          0.28,
+          0.12,
+          1.0
+        ],
+        "metallicFactor": 0.1,
+        "roughnessFactor": 0.8
+      }
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5123,
+      "count": 6,
+      "type": "SCALAR",
+      "max": [
+        3
+      ],
+      "min": [
+        0
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC3",
+      "max": [
+        2.5,
+        0,
+        2.5
+      ],
+      "min": [
+        -2.5,
+        0,
+        -2.5
+      ]
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 36,
+      "type": "SCALAR",
+      "max": [
+        23
+      ],
+      "min": [
+        0
+      ]
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3",
+      "max": [
+        2.5,
+        1.75,
+        0.05
+      ],
+      "min": [
+        -2.5,
+        -1.75,
+        -0.05
+      ]
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5123,
+      "count": 36,
+      "type": "SCALAR",
+      "max": [
+        23
+      ],
+      "min": [
+        0
+      ]
+    },
+    {
+      "bufferView": 7,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3",
+      "max": [
+        0.5,
+        1.1,
+        0.05
+      ],
+      "min": [
+        -0.5,
+        -1.1,
+        -0.05
+      ]
+    },
+    {
+      "bufferView": 8,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 9,
+      "componentType": 5123,
+      "count": 36,
+      "type": "SCALAR",
+      "max": [
+        23
+      ],
+      "min": [
+        0
+      ]
+    },
+    {
+      "bufferView": 10,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3",
+      "max": [
+        0.4,
+        1.0,
+        0.05
+      ],
+      "min": [
+        -0.4,
+        -1.0,
+        -0.05
+      ]
+    },
+    {
+      "bufferView": 11,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 12,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 12,
+      "byteLength": 48,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 60,
+      "byteLength": 48,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 108,
+      "byteLength": 72,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 180,
+      "byteLength": 288,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 468,
+      "byteLength": 288,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 756,
+      "byteLength": 72,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 828,
+      "byteLength": 288,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 1116,
+      "byteLength": 288,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 1404,
+      "byteLength": 72,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 1476,
+      "byteLength": 288,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 1764,
+      "byteLength": 288,
+      "target": 34962
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "cellar.bin",
+      "byteLength": 2052
+    }
+  ]
+}

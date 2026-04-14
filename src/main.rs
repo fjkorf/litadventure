@@ -8,6 +8,8 @@ mod components;
 mod debug;
 mod game_data;
 mod hints;
+mod input_config;
+mod input_intent;
 mod interaction;
 mod inventory;
 mod item_preview;
@@ -66,6 +68,8 @@ fn main() {
         .add_plugins(states::StatesPlugin)
         .add_plugins(hints::HintsPlugin)
         .add_plugins(game_data::GameDataPlugin)
+        .add_plugins(input_config::InputConfigPlugin)
+        .add_plugins(input_intent::InputIntentPlugin)
         .add_plugins(save::SavePlugin)
         .add_plugins(item_preview::ItemPreviewPlugin)
         .register_type::<components::Clickable>()
@@ -79,6 +83,7 @@ fn main() {
         .register_type::<components::TweenConfig>()
         .init_resource::<Page>()
         .init_resource::<AppState>()
+        .init_resource::<InventorySelection>()
         .add_systems(Startup, init_ui_state)
         .add_systems(EguiPrimaryContextPass, render_ui)
         .add_systems(
@@ -147,7 +152,7 @@ fn sync_inventory(
     state.inv_hint = if inv.items.is_empty() {
         "Your pockets are empty.".into()
     } else if inv.items.len() >= 2 {
-        "Drag one item onto another to combine.".into()
+        "Drag or click two items to combine.".into()
     } else {
         "1 item collected.".into()
     };
@@ -197,6 +202,10 @@ fn handle_game_over(
     }
 }
 
+/// Tracks which inventory items are selected for keyboard-based combining.
+#[derive(Resource, Default)]
+struct InventorySelection(Vec<String>);
+
 // -- UI Rendering --
 
 fn render_ui(
@@ -207,7 +216,7 @@ fn render_ui(
     mut objectives: ResMut<'_, objectives::Objectives>,
     mut camera_ctrl: ResMut<'_, camera::CameraController>,
     mut hint_state: ResMut<'_, hints::HintState>,
-    mut data_ready: ResMut<'_, game_data::GameDataReady>,
+    mut inv_selected: ResMut<'_, InventorySelection>,
     game_state: Res<'_, State<states::GameState>>,
     mut next_game_state: ResMut<'_, NextState<states::GameState>>,
     mut save_events: MessageWriter<'_, save::SaveRequested>,
@@ -244,34 +253,53 @@ fn render_ui(
             })
             .collect();
 
-        // Track combine result from drag-drop (applied after the panel renders)
+        // Track combine result from drag-drop or click-select (applied after panel)
         let mut combine_pair: Option<(String, String)> = None;
 
         egui::SidePanel::right("inventory_panel")
             .default_width(200.0)
             .show(ctxs.ctx_mut()?, |ui| {
-                // Draggable item images
                 if !tex_ids.is_empty() {
                     ui.horizontal_wrapped(|ui| {
                         for (item_id, name, tex_id) in &tex_ids {
                             let drag_id = egui::Id::new(("inv_item", item_id.as_str()));
-                            let frame = egui::Frame::new().inner_margin(egui::Margin::same(4));
+                            let is_selected = inv_selected.0.contains(item_id);
+                            let frame = egui::Frame::new()
+                                .inner_margin(egui::Margin::same(4))
+                                .stroke(if is_selected {
+                                    egui::Stroke::new(2.0, egui::Color32::GOLD)
+                                } else {
+                                    egui::Stroke::NONE
+                                });
 
-                            let (_, dropped) =
+                            let (drop_resp, dropped) =
                                 ui.dnd_drop_zone::<String, _>(frame, |ui| {
                                     ui.dnd_drag_source(drag_id, item_id.clone(), |ui| {
                                         ui.vertical(|ui| {
                                             if let Some(tid) = tex_id {
-                                                ui.image(egui::load::SizedTexture::new(
-                                                    *tid,
-                                                    egui::vec2(64.0, 64.0),
-                                                ));
+                                                let img = egui::Image::new(
+                                                    egui::load::SizedTexture::new(
+                                                        *tid,
+                                                        egui::vec2(64.0, 64.0),
+                                                    ),
+                                                )
+                                                .sense(egui::Sense::click());
+                                                let resp = ui.add(img);
+                                                // Click to select/deselect
+                                                if resp.clicked() {
+                                                    if is_selected {
+                                                        inv_selected.0.retain(|s| s != item_id);
+                                                    } else {
+                                                        inv_selected.0.push(item_id.clone());
+                                                    }
+                                                }
                                             }
                                             ui.small(name);
                                         });
                                     });
                                 });
 
+                            // Drag-drop combine
                             if let Some(dragged_id) = dropped {
                                 if *dragged_id != *item_id {
                                     combine_pair =
@@ -280,6 +308,17 @@ fn render_ui(
                             }
                         }
                     });
+
+                    // Auto-combine when 2 items selected
+                    if inv_selected.0.len() >= 2 {
+                        let a = inv_selected.0[0].clone();
+                        let b = inv_selected.0[1].clone();
+                        if a != b {
+                            combine_pair = Some((a, b));
+                        }
+                        inv_selected.0.clear();
+                    }
+
                     ui.separator();
                 }
 

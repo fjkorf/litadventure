@@ -4,5 +4,7 @@
     rooms: {
         "study": (scene: "scenes/study.glb"),
         "hallway": (scene: "scenes/hallway.glb"),
+        "attic": (scene: "scenes/attic.glb"),
+        "cellar": (scene: "scenes/cellar.glb"),
     },
 )

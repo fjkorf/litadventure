@@ -52,3 +52,9 @@ Hidden entities (`Visibility::Hidden`) are not drawn in the debug overlay. This 
 - Check that camera spots have correct look_at lines pointing to their targets
 - Verify portals are positioned where players would expect doors
 - Confirm all interactive objects have the expected wireframe color
+
+## Tab Focus Indicator
+
+When Tab navigation is active, the keyboard-focused object displays an emissive glow (golden tint, `0.2, 0.2, 0.05`). This is separate from the mouse hover highlight and persists until the focus moves to another object via Tab/Shift+Tab.
+
+The `FocusedClickable` resource tracks the current focus entity and the ordered list of all clickable entities in the scene.

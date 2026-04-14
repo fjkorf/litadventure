@@ -74,6 +74,9 @@ pub struct RequiresItem {
     pub item_id: String,
     pub use_message: String,
     pub fail_message: String,
+    /// Objective ID to complete when the item is successfully used.
+    #[reflect(default)]
+    pub completes_objective: String,
 }
 
 /// Tween configuration for objects that animate (e.g., drawer open/close).

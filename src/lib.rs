@@ -4,6 +4,8 @@ pub mod components;
 pub mod debug;
 pub mod game_data;
 pub mod hints;
+pub mod input_config;
+pub mod input_intent;
 pub mod interaction;
 pub mod inventory;
 pub mod item_preview;

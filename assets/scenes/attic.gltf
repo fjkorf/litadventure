@@ -1,0 +1,440 @@
+{
+  "asset": {
+    "version": "2.0",
+    "generator": "litadventure generate_study.py"
+  },
+  "extensionsUsed": [
+    "BEVY_skein"
+  ],
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Study",
+      "nodes": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "AtticFloor",
+      "mesh": 0
+    },
+    {
+      "name": "AtticWall",
+      "mesh": 1,
+      "translation": [
+        0,
+        1.5,
+        -2
+      ]
+    },
+    {
+      "name": "DustyTrunk",
+      "mesh": 2,
+      "translation": [
+        0,
+        0.2,
+        -1.5
+      ],
+      "extensions": {
+        "BEVY_skein": {
+          "components": [
+            {
+              "litadventure::components::Clickable": {
+                "label": "Dusty Trunk",
+                "description": "An old trunk covered in cobwebs. It's pitch dark up here."
+              }
+            },
+            {
+              "litadventure::components::ObjectState": "Locked"
+            },
+            {
+              "litadventure::components::RequiresItem": {
+                "item_id": "flashlight",
+                "use_message": "You shine the flashlight into the trunk. Inside: a faded photograph and a note reading 'The exit is below.'",
+                "fail_message": "It's pitch dark. You can't see anything without a light source.",
+                "completes_objective": ""
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "OldLetter",
+      "mesh": 3,
+      "translation": [
+        1,
+        0.05,
+        -0.5
+      ],
+      "extensions": {
+        "BEVY_skein": {
+          "components": [
+            {
+              "litadventure::components::Clickable": {
+                "label": "Old Letter",
+                "description": "A yellowed letter. The ink has faded beyond reading."
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "CameraSpot_AtticOverview",
+      "translation": [
+        0,
+        2,
+        2
+      ],
+      "extensions": {
+        "BEVY_skein": {
+          "components": [
+            {
+              "litadventure::components::CameraSpot": {
+                "name": "attic_overview",
+                "look_at": [
+                  0.0,
+                  0.5,
+                  -1.0
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "AtticFloorMesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 1,
+            "NORMAL": 2
+          },
+          "indices": 0,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "name": "AtticWallMesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 4,
+            "NORMAL": 5
+          },
+          "indices": 3,
+          "material": 1
+        }
+      ]
+    },
+    {
+      "name": "TrunkMesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 7,
+            "NORMAL": 8
+          },
+          "indices": 6,
+          "material": 2
+        }
+      ]
+    },
+    {
+      "name": "LetterMesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 10,
+            "NORMAL": 11
+          },
+          "indices": 9,
+          "material": 3
+        }
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "AtticFloorMat",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.2,
+          0.18,
+          0.15,
+          1.0
+        ],
+        "metallicFactor": 0.1,
+        "roughnessFactor": 0.8
+      }
+    },
+    {
+      "name": "AtticWallMat",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.35,
+          0.3,
+          0.25,
+          1.0
+        ],
+        "metallicFactor": 0.1,
+        "roughnessFactor": 0.8
+      }
+    },
+    {
+      "name": "TrunkMat",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.3,
+          0.22,
+          0.12,
+          1.0
+        ],
+        "metallicFactor": 0.1,
+        "roughnessFactor": 0.8
+      }
+    },
+    {
+      "name": "LetterMat",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.7,
+          0.65,
+          0.5,
+          1.0
+        ],
+        "metallicFactor": 0.1,
+        "roughnessFactor": 0.8
+      }
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5123,
+      "count": 6,
+      "type": "SCALAR",
+      "max": [
+        3
+      ],
+      "min": [
+        0
+      ]
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC3",
+      "max": [
+        2.0,
+        0,
+        2.0
+      ],
+      "min": [
+        -2.0,
+        0,
+        -2.0
+      ]
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 36,
+      "type": "SCALAR",
+      "max": [
+        23
+      ],
+      "min": [
+        0
+      ]
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3",
+      "max": [
+        2.0,
+        1.5,
+        0.05
+      ],
+      "min": [
+        -2.0,
+        -1.5,
+        -0.05
+      ]
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5123,
+      "count": 36,
+      "type": "SCALAR",
+      "max": [
+        23
+      ],
+      "min": [
+        0
+      ]
+    },
+    {
+      "bufferView": 7,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3",
+      "max": [
+        0.3,
+        0.2,
+        0.2
+      ],
+      "min": [
+        -0.3,
+        -0.2,
+        -0.2
+      ]
+    },
+    {
+      "bufferView": 8,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 9,
+      "componentType": 5123,
+      "count": 36,
+      "type": "SCALAR",
+      "max": [
+        23
+      ],
+      "min": [
+        0
+      ]
+    },
+    {
+      "bufferView": 10,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3",
+      "max": [
+        0.075,
+        0.005,
+        0.05
+      ],
+      "min": [
+        -0.075,
+        -0.005,
+        -0.05
+      ]
+    },
+    {
+      "bufferView": 11,
+      "componentType": 5126,
+      "count": 24,
+      "type": "VEC3"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteOffset": 0,
+      "byteLength": 12,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 12,
+      "byteLength": 48,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 60,
+      "byteLength": 48,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 108,
+      "byteLength": 72,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 180,
+      "byteLength": 288,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 468,
+      "byteLength": 288,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 756,
+      "byteLength": 72,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 828,
+      "byteLength": 288,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 1116,
+      "byteLength": 288,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 1404,
+      "byteLength": 72,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 1476,
+      "byteLength": 288,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 1764,
+      "byteLength": 288,
+      "target": 34962
+    }
+  ],
+  "buffers": [
+    {
+      "uri": "attic.bin",
+      "byteLength": 2052
+    }
+  ]
+}
