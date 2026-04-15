@@ -55,6 +55,14 @@ Hidden entities (`Visibility::Hidden`) are not drawn in the debug overlay. This 
 
 ## Tab Focus Indicator
 
-When Tab navigation is active, the keyboard-focused object displays an emissive glow (golden tint, `0.2, 0.2, 0.05`). This is separate from the mouse hover highlight and persists until the focus moves to another object via Tab/Shift+Tab.
+### 3D Scene (Playing State)
+
+When Tab navigation is active, the keyboard-focused object displays an emissive glow (golden tint, `0.8, 0.6, 0.1`). This is separate from the mouse hover highlight and persists until the focus moves to another object via Tab/Shift+Tab.
 
 The `FocusedClickable` resource tracks the current focus entity and the ordered list of all clickable entities in the scene.
+
+### Overlay Screens (Title, Pause, Victory, GameOver)
+
+Overlay buttons receive automatic keyboard focus via egui's native focus ring. The first button is auto-focused when the overlay appears. Tab/Shift+Tab cycles between buttons. Enter activates the focused button.
+
+Overlay windows use `.resizable(false).interactable(false)` to prevent egui's resize handles from appearing in the Tab focus order.

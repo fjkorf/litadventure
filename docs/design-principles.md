@@ -110,8 +110,9 @@ These games informed the design:
 
 ### Implemented
 - **Rebindable controls** via `assets/settings/keybindings.ron` (hot-reloadable)
-- **Tab navigation** through clickable objects with emissive focus highlight
-- **Enter key** to confirm action on focused object (full keyboard-only play)
+- **Tab navigation (3D)** through clickable objects with emissive focus highlight
+- **Tab navigation (UI)** through overlay buttons with egui focus ring; first button auto-focused on overlay appearance
+- **Enter key** to confirm action on focused object or activate focused UI button (full keyboard-only play)
 - **Click-to-select** inventory combine (gold border selection, no drag required)
 - **Dwell-click** (hover-to-click) for motor accessibility (configurable duration, disabled by default)
 - **EguiWantsInput guards** preventing input double-handling between UI and 3D scene

@@ -38,7 +38,7 @@ main.rs ─── Plugins ──┬── CameraPlugin (camera.rs)
          │             ├── sync_hints (on HintText change)
          │             └── sync_overlays (on GameState change)
          │
-         └── render_ui ── EguiPrimaryContextPass schedule
+         └── drive_overlay_focus ──> render_ui ── EguiPrimaryContextPass schedule (chained)
 ```
 
 ## Game State Flow
@@ -217,8 +217,20 @@ The `on_click` observer remains pointer-driven (Pointer<Click>), guarded by `Egu
 
 `InputConfig` resource loaded from `assets/settings/keybindings.ron`. String-based key names parsed to `KeyCode` at load time. Hot-reloadable on native via `file_watcher`.
 
+### Input Routing: Playing vs Overlays
+
+Tab and Enter are routed differently based on `GameState`:
+
+| State | Tab/Enter routed to | Why |
+|-------|-------------------|-----|
+| **Playing** | 3D scene (`InputIntent` system) | Tab cycles `Clickable` entities, Enter confirms focused |
+| **Title, Paused, Won, GameOver** | egui buttons (native focus) | Tab cycles overlay buttons, Enter activates focused button |
+
+During overlay states, `drive_overlay_focus` (in `EguiPrimaryContextPass`, before `render_ui`) auto-focuses the first button via `move_focus(Next)`. Overlay windows use `.resizable(false).interactable(false)` to prevent resize handles and window body from stealing keyboard focus.
+
 ### Accessibility Features
 
-- **Tab cycling**: `FocusedClickable` resource tracks focused entity. Tab/Shift-Tab cycles through visible `Clickable` entities with emissive highlight.
+- **Tab cycling (3D)**: `FocusedClickable` resource tracks focused entity. Tab/Shift-Tab cycles through visible `Clickable` entities with emissive highlight.
+- **Tab cycling (UI)**: Overlay buttons auto-focus on appearance. Tab/Shift-Tab cycles between buttons natively via egui's focus system.
 - **Click-to-select combine**: Click inventory item to select (gold border), click second to auto-combine. Parallel path to drag-drop.
 - **Dwell-click**: `DwellClickSettings` resource (disabled by default). Hovering over a clickable for N seconds fires `ConfirmFocused`.

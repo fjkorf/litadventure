@@ -85,7 +85,7 @@ fn main() {
         .init_resource::<AppState>()
         .init_resource::<InventorySelection>()
         .add_systems(Startup, init_ui_state)
-        .add_systems(EguiPrimaryContextPass, render_ui)
+        .add_systems(EguiPrimaryContextPass, (drive_overlay_focus, render_ui).chain())
         .add_systems(
             Update,
             (
@@ -205,6 +205,34 @@ fn handle_game_over(
 /// Tracks which inventory items are selected for keyboard-based combining.
 #[derive(Resource, Default)]
 struct InventorySelection(Vec<String>);
+
+/// Drive egui keyboard focus during overlay states (Title, Pause, Victory, GameOver).
+/// Continuously nudges focus toward the first button until one has focus.
+/// Tab cycling between buttons is handled natively by egui's Focus::begin_pass.
+fn drive_overlay_focus(
+    mut ctxs: EguiContexts<'_, '_>,
+    game_state: Res<State<states::GameState>>,
+) -> Result {
+    let is_overlay = matches!(
+        game_state.get(),
+        states::GameState::Title
+            | states::GameState::Paused
+            | states::GameState::Won
+            | states::GameState::GameOver
+    );
+    if !is_overlay {
+        return Ok(());
+    }
+
+    let ctx = ctxs.ctx_mut()?;
+    // Every frame during an overlay: if nothing has focus, push toward first focusable button.
+    // Overlay windows use .resizable(false).interactable(false) to prevent resize handles
+    // and the window body from stealing focus before buttons.
+    if ctx.memory(|mem| mem.focused().is_none()) {
+        ctx.memory_mut(|mem| mem.move_focus(egui::FocusDirection::Next));
+    }
+    Ok(())
+}
 
 // -- UI Rendering --
 
@@ -354,7 +382,9 @@ fn render_ui(
     if state.show_help {
         egui::Window::new("Help")
             .collapsible(false)
+            .resizable(false)
             .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+            .interactable(false)
             .show(ctxs.ctx_mut()?, |ui| {
                 render_help(ui, &mut state);
             });
@@ -364,7 +394,9 @@ fn render_ui(
     if state.show_victory {
         egui::Window::new("Victory")
             .collapsible(false)
+            .resizable(false)
             .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+            .interactable(false)
             .show(ctxs.ctx_mut()?, |ui| {
                 render_victory(ui, &mut state);
             });
@@ -375,7 +407,9 @@ fn render_ui(
         egui::Window::new("Game Over")
             .collapsible(false)
             .title_bar(false)
+            .resizable(false)
             .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+            .interactable(false)
             .show(ctxs.ctx_mut()?, |ui| {
                 render_game_over(ui, &mut state);
             });
@@ -386,7 +420,9 @@ fn render_ui(
         egui::Window::new("Title")
             .collapsible(false)
             .title_bar(false)
+            .resizable(false)
             .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+            .interactable(false)
             .show(ctxs.ctx_mut()?, |ui| {
                 render_title(ui, &mut state);
             });

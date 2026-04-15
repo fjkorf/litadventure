@@ -142,6 +142,27 @@ fn draw_state_indicator(
     gizmos.sphere(Isometry3d::from_translation(Vec3::ZERO), 0.08, color);
 }
 
+/// Draw a bright ring around the keyboard-focused entity.
+fn draw_focus_indicator(
+    debug: Res<DebugOverlay>,
+    focused: Res<crate::input_intent::FocusedClickable>,
+    transforms: Query<&GlobalTransform>,
+    mut gizmos: Gizmos,
+) {
+    if !debug.enabled {
+        return;
+    }
+
+    if let Some(entity) = focused.entity {
+        if let Ok(gt) = transforms.get(entity) {
+            let pos = gt.translation();
+            // Bright gold ring around the focused entity
+            gizmos.sphere(Isometry3d::from_translation(pos), 0.6, Color::srgb(1.0, 0.85, 0.0));
+            gizmos.cross(Isometry3d::from_translation(pos + Vec3::Y * 0.8), 0.15, Color::srgb(1.0, 0.85, 0.0));
+        }
+    }
+}
+
 pub struct DebugPlugin;
 
 impl Plugin for DebugPlugin {
@@ -153,6 +174,7 @@ impl Plugin for DebugPlugin {
                 draw_click_zones,
                 draw_camera_spots,
                 draw_state_indicator,
+                draw_focus_indicator,
             ),
         );
     }

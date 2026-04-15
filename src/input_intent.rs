@@ -29,11 +29,22 @@ fn produce_input_intents(
     mouse: Res<ButtonInput<MouseButton>>,
     config: Res<InputConfig>,
     egui_input: Res<EguiWantsInput>,
+    game_state: Res<State<crate::states::GameState>>,
     mut intents: MessageWriter<InputIntent>,
 ) {
-    // Guard: don't produce keyboard intents while egui has focus
     let kbd_ok = !egui_input.wants_any_keyboard_input();
     let ptr_ok = !egui_input.wants_any_pointer_input();
+
+    // Overlay states (Title, Paused, Won, GameOver) have egui buttons —
+    // let egui handle Tab/Enter natively for button navigation.
+    // Playing state has 3D clickable objects — route Tab/Enter to the intent system.
+    let is_overlay = matches!(
+        game_state.get(),
+        crate::states::GameState::Title
+            | crate::states::GameState::Paused
+            | crate::states::GameState::Won
+            | crate::states::GameState::GameOver
+    );
 
     if kbd_ok && keys.just_pressed(config.back) {
         intents.write(InputIntent::CancelOrBack);
@@ -47,27 +58,33 @@ fn produce_input_intents(
     if kbd_ok && keys.just_pressed(config.pause) {
         intents.write(InputIntent::TogglePause);
     }
-    if kbd_ok && keys.just_pressed(config.cycle_next) {
-        if keys.pressed(KeyCode::ShiftLeft) || keys.pressed(KeyCode::ShiftRight) {
-            intents.write(InputIntent::CyclePrev);
-        } else {
-            intents.write(InputIntent::CycleNext);
+
+    // Tab/Enter: 3D scene during gameplay, egui buttons during overlays
+    if !is_overlay {
+        if keys.just_pressed(config.cycle_next) {
+            if keys.pressed(KeyCode::ShiftLeft) || keys.pressed(KeyCode::ShiftRight) {
+                intents.write(InputIntent::CyclePrev);
+            } else {
+                intents.write(InputIntent::CycleNext);
+            }
         }
-    }
-    if kbd_ok && keys.just_pressed(config.confirm) {
-        intents.write(InputIntent::ConfirmFocused);
+        if keys.just_pressed(config.confirm) {
+            intents.write(InputIntent::ConfirmFocused);
+        }
     }
 }
 
 /// Tracks which Clickable entity has keyboard focus for Tab cycling.
-#[derive(Resource, Default)]
+#[derive(Resource, Default, Reflect)]
+#[reflect(Resource)]
 pub struct FocusedClickable {
     pub entity: Option<Entity>,
     pub ordered: Vec<Entity>,
 }
 
 /// Marker component for the currently keyboard-focused entity's highlight.
-#[derive(Component)]
+#[derive(Component, Reflect)]
+#[reflect(Component)]
 pub struct KeyboardFocusHighlight;
 
 /// Rebuild the ordered list of clickable entities when the scene changes.
@@ -91,12 +108,49 @@ fn update_clickable_focus_list(
     }
 }
 
+/// Find the MeshMaterial3d handle on an entity or its children (glTF hierarchy).
+fn find_material(
+    entity: Entity,
+    mat_q: &Query<&MeshMaterial3d<StandardMaterial>>,
+    children_q: &Query<&Children>,
+) -> Option<Handle<StandardMaterial>> {
+    // Try the entity itself first
+    if let Ok(mat) = mat_q.get(entity) {
+        return Some(mat.0.clone());
+    }
+    // Walk children (glTF puts mesh on child entities)
+    if let Ok(children) = children_q.get(entity) {
+        for child in children.iter() {
+            if let Ok(mat) = mat_q.get(child) {
+                return Some(mat.0.clone());
+            }
+        }
+    }
+    None
+}
+
+/// Set emissive on an entity's material (handles glTF child hierarchy).
+fn set_emissive(
+    entity: Entity,
+    emissive: LinearRgba,
+    mat_q: &Query<&MeshMaterial3d<StandardMaterial>>,
+    children_q: &Query<&Children>,
+    materials: &mut Assets<StandardMaterial>,
+) {
+    if let Some(handle) = find_material(entity, mat_q, children_q) {
+        if let Some(mat) = materials.get_mut(&handle) {
+            mat.emissive = emissive;
+        }
+    }
+}
+
 /// Cycle through clickable entities on Tab/Shift-Tab.
 fn handle_cycle_intent(
     mut intents: MessageReader<InputIntent>,
     mut focused: ResMut<FocusedClickable>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mat_q: Query<&MeshMaterial3d<StandardMaterial>>,
+    children_q: Query<&Children>,
     mut commands: Commands,
 ) {
     let mut direction: Option<i32> = None;
@@ -113,11 +167,7 @@ fn handle_cycle_intent(
 
     // Remove highlight from previous
     if let Some(prev) = focused.entity {
-        if let Ok(mat_handle) = mat_q.get(prev) {
-            if let Some(mat) = materials.get_mut(&mat_handle.0) {
-                mat.emissive = LinearRgba::NONE;
-            }
-        }
+        set_emissive(prev, LinearRgba::NONE, &mat_q, &children_q, &mut materials);
         commands.entity(prev).remove::<KeyboardFocusHighlight>();
     }
 
@@ -133,12 +183,14 @@ fn handle_cycle_intent(
 
     focused.entity = Some(next_entity);
 
-    // Apply highlight
-    if let Ok(mat_handle) = mat_q.get(next_entity) {
-        if let Some(mat) = materials.get_mut(&mat_handle.0) {
-            mat.emissive = LinearRgba::new(0.2, 0.2, 0.05, 1.0);
-        }
-    }
+    // Apply highlight — bright enough to be clearly visible
+    set_emissive(
+        next_entity,
+        LinearRgba::new(0.8, 0.6, 0.1, 1.0),
+        &mat_q,
+        &children_q,
+        &mut materials,
+    );
     commands.entity(next_entity).insert(KeyboardFocusHighlight);
 }
 
@@ -312,7 +364,9 @@ pub struct InputIntentPlugin;
 
 impl Plugin for InputIntentPlugin {
     fn build(&self, app: &mut App) {
-        app.add_message::<InputIntent>()
+        app.register_type::<FocusedClickable>()
+            .register_type::<KeyboardFocusHighlight>()
+            .add_message::<InputIntent>()
             .init_resource::<FocusedClickable>()
             .init_resource::<DwellClickSettings>()
             .init_resource::<DwellState>()

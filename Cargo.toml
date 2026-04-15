@@ -66,3 +66,7 @@ path = "examples/screenshot_test.rs"
 [[example]]
 name = "load_gltf_test"
 path = "examples/load_gltf_test.rs"
+
+[[example]]
+name = "tab_selection_test"
+path = "examples/tab_selection_test.rs"
