@@ -9,6 +9,7 @@ struct InputConfigRaw {
     pub pause: String,
     pub cycle_next: String,
     pub confirm: String,
+    pub combine: String,
     pub debug_overlay: String,
 }
 
@@ -20,6 +21,7 @@ pub struct InputConfig {
     pub pause: KeyCode,
     pub cycle_next: KeyCode,
     pub confirm: KeyCode,
+    pub combine: KeyCode,
     pub debug_overlay: KeyCode,
 }
 
@@ -31,6 +33,7 @@ impl Default for InputConfig {
             pause: KeyCode::KeyP,
             cycle_next: KeyCode::Tab,
             confirm: KeyCode::Enter,
+            combine: KeyCode::KeyC,
             debug_overlay: KeyCode::F1,
         }
     }
@@ -112,6 +115,7 @@ fn apply_input_config(
     if let Some(k) = parse_key(&raw.pause) { config.pause = k; }
     if let Some(k) = parse_key(&raw.cycle_next) { config.cycle_next = k; }
     if let Some(k) = parse_key(&raw.confirm) { config.confirm = k; }
+    if let Some(k) = parse_key(&raw.combine) { config.combine = k; }
     if let Some(k) = parse_key(&raw.debug_overlay) { config.debug_overlay = k; }
 
     *applied = true;

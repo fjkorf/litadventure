@@ -21,6 +21,19 @@ pub enum InputIntent {
     CycleNext,
     /// Focus previous clickable object (Shift+Tab)
     CyclePrev,
+    /// Enter/exit combine mode (C)
+    ToggleCombineMode,
+}
+
+/// Keyboard-driven inventory combine mode.
+/// Press C to enter, Tab/Shift-Tab to cycle items, Enter to select, Escape to exit.
+#[derive(Resource, Default)]
+pub struct CombineState {
+    pub active: bool,
+    pub cursor: usize,
+    pub first_selection: Option<String>,
+    /// Set by handle_combine_mode, consumed by render_ui to apply the combine.
+    pub pending_combine: Option<(String, String)>,
 }
 
 /// Reads raw keyboard + mouse input, guards against egui, emits InputIntent messages.
@@ -59,7 +72,7 @@ fn produce_input_intents(
         intents.write(InputIntent::TogglePause);
     }
 
-    // Tab/Enter: 3D scene during gameplay, egui buttons during overlays
+    // Tab/Enter/C: 3D scene during gameplay, egui buttons during overlays
     if !is_overlay {
         if keys.just_pressed(config.cycle_next) {
             if keys.pressed(KeyCode::ShiftLeft) || keys.pressed(KeyCode::ShiftRight) {
@@ -70,6 +83,9 @@ fn produce_input_intents(
         }
         if keys.just_pressed(config.confirm) {
             intents.write(InputIntent::ConfirmFocused);
+        }
+        if kbd_ok && keys.just_pressed(config.combine) {
+            intents.write(InputIntent::ToggleCombineMode);
         }
     }
 }
@@ -157,8 +173,10 @@ fn handle_cycle_intent(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mat_q: Query<&MeshMaterial3d<StandardMaterial>>,
     children_q: Query<&Children>,
+    combine: Res<CombineState>,
     mut commands: Commands,
 ) {
+    if combine.active { intents.read().last(); return; } // drain intents, skip
     let mut direction: Option<i32> = None;
     for intent in intents.read() {
         match intent {
@@ -416,6 +434,80 @@ fn update_dwell_click(
     }
 }
 
+/// Handle combine mode: toggle on/off, cycle items, select, auto-combine.
+fn handle_combine_mode(
+    mut intents: MessageReader<InputIntent>,
+    mut combine: ResMut<CombineState>,
+    inv: Res<crate::inventory::Inventory>,
+    mut feedback: ResMut<crate::interaction::FeedbackText>,
+) {
+    for intent in intents.read() {
+        match intent {
+            InputIntent::ToggleCombineMode => {
+                if combine.active {
+                    combine.active = false;
+                    combine.first_selection = None;
+                    combine.cursor = 0;
+                    feedback.0 = "Exited combine mode.".into();
+                } else if inv.items.len() >= 2 {
+                    combine.active = true;
+                    combine.cursor = 0;
+                    combine.first_selection = None;
+                    feedback.0 = "Combine mode: Tab to cycle, Enter to select, Esc to cancel.".into();
+                } else {
+                    feedback.0 = "Need at least 2 items to combine.".into();
+                }
+            }
+            InputIntent::CancelOrBack if combine.active => {
+                combine.active = false;
+                combine.first_selection = None;
+                combine.cursor = 0;
+                feedback.0 = "Exited combine mode.".into();
+            }
+            InputIntent::CycleNext if combine.active => {
+                if !inv.items.is_empty() {
+                    combine.cursor = (combine.cursor + 1) % inv.items.len();
+                    let name = &inv.items[combine.cursor].name;
+                    feedback.0 = format!("→ {name}");
+                }
+            }
+            InputIntent::CyclePrev if combine.active => {
+                if !inv.items.is_empty() {
+                    combine.cursor = if combine.cursor == 0 {
+                        inv.items.len() - 1
+                    } else {
+                        combine.cursor - 1
+                    };
+                    let name = &inv.items[combine.cursor].name;
+                    feedback.0 = format!("→ {name}");
+                }
+            }
+            InputIntent::ConfirmFocused if combine.active => {
+                if combine.cursor < inv.items.len() {
+                    let item_id = inv.items[combine.cursor].item_id.clone();
+                    let item_name = inv.items[combine.cursor].name.clone();
+
+                    if let Some(first) = &combine.first_selection {
+                        if *first == item_id {
+                            feedback.0 = "Can't combine an item with itself.".into();
+                        } else {
+                            let first_clone = first.clone();
+                            combine.pending_combine = Some((first_clone, item_id));
+                            combine.active = false;
+                            combine.first_selection = None;
+                            combine.cursor = 0;
+                        }
+                    } else {
+                        combine.first_selection = Some(item_id);
+                        feedback.0 = format!("Selected {item_name}. Pick second item.");
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
 pub struct InputIntentPlugin;
 
 impl Plugin for InputIntentPlugin {
@@ -426,6 +518,7 @@ impl Plugin for InputIntentPlugin {
             .init_resource::<FocusedClickable>()
             .init_resource::<DwellClickSettings>()
             .init_resource::<DwellState>()
+            .init_resource::<CombineState>()
             .add_systems(PreUpdate, produce_input_intents)
             .add_systems(
                 Update,
@@ -433,6 +526,7 @@ impl Plugin for InputIntentPlugin {
                     update_clickable_focus_list,
                     handle_cycle_intent,
                     handle_confirm_intent,
+                    handle_combine_mode,
                     update_dwell_click,
                 ),
             );

@@ -83,7 +83,6 @@ fn main() {
         .register_type::<components::TweenConfig>()
         .init_resource::<Page>()
         .init_resource::<AppState>()
-        .init_resource::<InventorySelection>()
         .add_systems(Startup, init_ui_state)
         .add_systems(EguiPrimaryContextPass, (drive_overlay_focus, render_ui).chain())
         .add_systems(
@@ -202,9 +201,6 @@ fn handle_game_over(
     }
 }
 
-/// Tracks which inventory items are selected for keyboard-based combining.
-#[derive(Resource, Default)]
-struct InventorySelection(Vec<String>);
 
 /// Drive egui keyboard focus during overlay states (Title, Pause, Victory, GameOver).
 /// Continuously nudges focus toward the first button until one has focus.
@@ -244,7 +240,7 @@ fn render_ui(
     mut objectives: ResMut<'_, objectives::Objectives>,
     mut camera_ctrl: ResMut<'_, camera::CameraController>,
     mut hint_state: ResMut<'_, hints::HintState>,
-    mut inv_selected: ResMut<'_, InventorySelection>,
+    mut combine_state: ResMut<'_, input_intent::CombineState>,
     game_state: Res<'_, State<states::GameState>>,
     mut next_game_state: ResMut<'_, NextState<states::GameState>>,
     mut save_events: MessageWriter<'_, save::SaveRequested>,
@@ -284,23 +280,37 @@ fn render_ui(
         // Track combine result from drag-drop or click-select (applied after panel)
         let mut combine_pair: Option<(String, String)> = None;
 
+        // Snapshot combine mode state before the panel closure borrows it
+        let combine_active = combine_state.active;
+        let combine_cursor = combine_state.cursor;
+        let combine_first = combine_state.first_selection.clone();
+
         egui::SidePanel::right("inventory_panel")
             .default_width(200.0)
             .show(ctxs.ctx_mut()?, |ui| {
+                if combine_active {
+                    ui.colored_label(egui::Color32::GOLD, "-- Combine Mode --");
+                }
+
                 if !tex_ids.is_empty() {
                     ui.horizontal_wrapped(|ui| {
-                        for (item_id, name, tex_id) in &tex_ids {
+                        for (idx, (item_id, name, tex_id)) in tex_ids.iter().enumerate() {
                             let drag_id = egui::Id::new(("inv_item", item_id.as_str()));
-                            let is_selected = inv_selected.0.contains(item_id);
+                            // Highlight: gold if selected as first item, cyan if cursor
+                            let is_first = combine_first.as_deref() == Some(item_id.as_str());
+                            let is_cursor = combine_active && idx == combine_cursor;
+                            let stroke = if is_first {
+                                egui::Stroke::new(2.0, egui::Color32::GOLD)
+                            } else if is_cursor {
+                                egui::Stroke::new(2.0, egui::Color32::LIGHT_BLUE)
+                            } else {
+                                egui::Stroke::NONE
+                            };
                             let frame = egui::Frame::new()
                                 .inner_margin(egui::Margin::same(4))
-                                .stroke(if is_selected {
-                                    egui::Stroke::new(2.0, egui::Color32::GOLD)
-                                } else {
-                                    egui::Stroke::NONE
-                                });
+                                .stroke(stroke);
 
-                            let (drop_resp, dropped) =
+                            let (_, dropped) =
                                 ui.dnd_drop_zone::<String, _>(frame, |ui| {
                                     ui.dnd_drag_source(drag_id, item_id.clone(), |ui| {
                                         ui.vertical(|ui| {
@@ -312,15 +322,7 @@ fn render_ui(
                                                     ),
                                                 )
                                                 .sense(egui::Sense::click());
-                                                let resp = ui.add(img);
-                                                // Click to select/deselect
-                                                if resp.clicked() {
-                                                    if is_selected {
-                                                        inv_selected.0.retain(|s| s != item_id);
-                                                    } else {
-                                                        inv_selected.0.push(item_id.clone());
-                                                    }
-                                                }
+                                                ui.add(img);
                                             }
                                             ui.small(name);
                                         });
@@ -336,17 +338,6 @@ fn render_ui(
                             }
                         }
                     });
-
-                    // Auto-combine when 2 items selected
-                    if inv_selected.0.len() >= 2 {
-                        let a = inv_selected.0[0].clone();
-                        let b = inv_selected.0[1].clone();
-                        if a != b {
-                            combine_pair = Some((a, b));
-                        }
-                        inv_selected.0.clear();
-                    }
-
                     ui.separator();
                 }
 
@@ -354,11 +345,17 @@ fn render_ui(
                 render_inventory(ui, &mut state);
             });
 
+        // Consume keyboard combine result (from CombineState)
+        if combine_pair.is_none() {
+            if let Some(pair) = combine_state.pending_combine.take() {
+                combine_pair = Some(pair);
+            }
+        }
+
         // Apply combine result outside the panel closure (needs &mut inv)
         if let Some((a, b)) = combine_pair {
             if let Some(result_name) = inv.combine(&a, &b) {
                 feedback.0 = format!("You created a {}!", result_name);
-                // Find the result item_id and request a preview
                 if let Some(result_item) = inv.items.last() {
                     preview_events.write(item_preview::PreviewRequested {
                         item_id: result_item.item_id.clone(),

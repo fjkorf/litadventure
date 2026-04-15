@@ -4,5 +4,6 @@
     pause: "KeyP",
     cycle_next: "Tab",
     confirm: "Enter",
+    combine: "KeyC",
     debug_overlay: "F1",
 )
