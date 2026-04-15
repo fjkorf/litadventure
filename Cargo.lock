@@ -3820,6 +3820,7 @@ checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
 [[package]]
 name = "litui"
 version = "0.33.3"
+source = "git+https://github.com/fjkorf/litui.git#e506637b90ab1d7d73fd3e5e510b792de4b73708"
 dependencies = [
  "litui_helpers",
  "litui_macro",
@@ -3828,6 +3829,7 @@ dependencies = [
 [[package]]
 name = "litui_helpers"
 version = "0.33.3"
+source = "git+https://github.com/fjkorf/litui.git#e506637b90ab1d7d73fd3e5e510b792de4b73708"
 dependencies = [
  "eframe",
 ]
@@ -3835,6 +3837,7 @@ dependencies = [
 [[package]]
 name = "litui_macro"
 version = "0.33.3"
+source = "git+https://github.com/fjkorf/litui.git#e506637b90ab1d7d73fd3e5e510b792de4b73708"
 dependencies = [
  "litui_helpers",
  "litui_parser",
@@ -3847,6 +3850,7 @@ dependencies = [
 [[package]]
 name = "litui_parser"
 version = "0.33.3"
+source = "git+https://github.com/fjkorf/litui.git#e506637b90ab1d7d73fd3e5e510b792de4b73708"
 dependencies = [
  "pulldown-cmark",
  "serde",

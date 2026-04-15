@@ -22,7 +22,7 @@ bevy = { version = "0.18.1", default-features = false, features = [
     # Platform
     "std", "bevy_winit",
 ]}
-litui = { path = "../egui-md-macro/crates/litui" }
+litui = { git = "https://github.com/fjkorf/litui.git" }
 egui = "0.33"
 egui_extras = { version = "0.33", features = ["image"] }
 bevy_egui = "0.39"
