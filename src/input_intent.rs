@@ -465,7 +465,7 @@ fn handle_combine_mode(
 ) {
     for intent in intents.read() {
         match intent {
-            InputIntent::ToggleCombineMode | InputIntent::CancelOrBack => {
+            InputIntent::CancelOrBack => {
                 ms.mode = InputMode::Playing;
                 ms.first_selection = None;
                 ms.cursor = 0;
@@ -518,7 +518,7 @@ fn handle_examine_mode(
 ) {
     for intent in intents.read() {
         match intent {
-            InputIntent::ToggleExamineMode | InputIntent::CancelOrBack => {
+            InputIntent::CancelOrBack => {
                 ms.mode = InputMode::Playing;
                 ms.cursor = 0;
                 feedback.0 = "Exited examine mode.".into();
@@ -575,25 +575,42 @@ fn handle_mode_entry(
 ) {
     for intent in intents.read() {
         match intent {
-            InputIntent::ToggleCombineMode if ms.mode == InputMode::Playing => {
-                if inv.items.len() >= 2 {
-                    ms.mode = InputMode::Combining;
-                    ms.cursor = 0;
+            InputIntent::ToggleCombineMode => match ms.mode {
+                InputMode::Playing => {
+                    if inv.items.len() >= 2 {
+                        ms.mode = InputMode::Combining;
+                        ms.cursor = 0;
+                        ms.first_selection = None;
+                        feedback.0 = "Combine mode: Tab to cycle, Enter to select, Esc to cancel.".into();
+                    } else {
+                        feedback.0 = "Need at least 2 items to combine.".into();
+                    }
+                }
+                InputMode::Combining => {
+                    ms.mode = InputMode::Playing;
                     ms.first_selection = None;
-                    feedback.0 = "Combine mode: Tab to cycle, Enter to select, Esc to cancel.".into();
-                } else {
-                    feedback.0 = "Need at least 2 items to combine.".into();
-                }
-            }
-            InputIntent::ToggleExamineMode if ms.mode == InputMode::Playing => {
-                if !inv.items.is_empty() {
-                    ms.mode = InputMode::Examining;
                     ms.cursor = 0;
-                    feedback.0 = "Examine mode: Tab to cycle, Enter to examine, Esc to cancel.".into();
-                } else {
-                    feedback.0 = "No items to examine.".into();
+                    feedback.0 = "Exited combine mode.".into();
                 }
-            }
+                _ => {}
+            },
+            InputIntent::ToggleExamineMode => match ms.mode {
+                InputMode::Playing => {
+                    if !inv.items.is_empty() {
+                        ms.mode = InputMode::Examining;
+                        ms.cursor = 0;
+                        feedback.0 = "Examine mode: Tab to cycle, Enter to examine, Esc to cancel.".into();
+                    } else {
+                        feedback.0 = "No items to examine.".into();
+                    }
+                }
+                InputMode::Examining => {
+                    ms.mode = InputMode::Playing;
+                    ms.cursor = 0;
+                    feedback.0 = "Exited examine mode.".into();
+                }
+                _ => {}
+            },
             _ => {}
         }
     }
