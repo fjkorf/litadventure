@@ -240,7 +240,7 @@ fn render_ui(
     mut objectives: ResMut<'_, objectives::Objectives>,
     mut camera_ctrl: ResMut<'_, camera::CameraController>,
     mut hint_state: ResMut<'_, hints::HintState>,
-    mut combine_state: ResMut<'_, input_intent::CombineState>,
+    mut mode_state: ResMut<'_, input_intent::InputModeState>,
     game_state: Res<'_, State<states::GameState>>,
     mut next_game_state: ResMut<'_, NextState<states::GameState>>,
     mut save_events: MessageWriter<'_, save::SaveRequested>,
@@ -280,16 +280,21 @@ fn render_ui(
         // Track combine result from drag-drop or click-select (applied after panel)
         let mut combine_pair: Option<(String, String)> = None;
 
-        // Snapshot combine mode state before the panel closure borrows it
-        let combine_active = combine_state.active;
-        let combine_cursor = combine_state.cursor;
-        let combine_first = combine_state.first_selection.clone();
+        // Snapshot mode state before the panel closure borrows it
+        let mode_active = mode_state.mode != input_intent::InputMode::Playing;
+        let mode_cursor = mode_state.cursor;
+        let mode_first = mode_state.first_selection.clone();
+        let mode_label = match mode_state.mode {
+            input_intent::InputMode::Combining => Some("-- Combine Mode --"),
+            input_intent::InputMode::Examining => Some("-- Examine Mode --"),
+            _ => None,
+        };
 
         egui::SidePanel::right("inventory_panel")
             .default_width(200.0)
             .show(ctxs.ctx_mut()?, |ui| {
-                if combine_active {
-                    ui.colored_label(egui::Color32::GOLD, "-- Combine Mode --");
+                if let Some(label) = mode_label {
+                    ui.colored_label(egui::Color32::GOLD, label);
                 }
 
                 if !tex_ids.is_empty() {
@@ -297,8 +302,8 @@ fn render_ui(
                         for (idx, (item_id, name, tex_id)) in tex_ids.iter().enumerate() {
                             let drag_id = egui::Id::new(("inv_item", item_id.as_str()));
                             // Highlight: gold if selected as first item, cyan if cursor
-                            let is_first = combine_first.as_deref() == Some(item_id.as_str());
-                            let is_cursor = combine_active && idx == combine_cursor;
+                            let is_first = mode_first.as_deref() == Some(item_id.as_str());
+                            let is_cursor = mode_active && idx == mode_cursor;
                             let stroke = if is_first {
                                 egui::Stroke::new(2.0, egui::Color32::GOLD)
                             } else if is_cursor {
@@ -345,9 +350,9 @@ fn render_ui(
                 render_inventory(ui, &mut state);
             });
 
-        // Consume keyboard combine result (from CombineState)
+        // Consume keyboard combine result (from InputModeState)
         if combine_pair.is_none() {
-            if let Some(pair) = combine_state.pending_combine.take() {
+            if let Some(pair) = mode_state.pending_combine.take() {
                 combine_pair = Some(pair);
             }
         }
@@ -364,6 +369,18 @@ fn render_ui(
                 }
             } else {
                 feedback.0 = "These don't seem to work together.".into();
+            }
+        }
+
+        // Apply examine transformation (from InputModeState)
+        if let Some((old_id, new_id, new_name)) = mode_state.pending_transform.take() {
+            inv.remove_item(&old_id);
+            inv.add_item(&new_id, &new_name, "");
+            if let Some(result_item) = inv.items.iter().find(|i| i.item_id == new_id) {
+                preview_events.write(item_preview::PreviewRequested {
+                    item_id: result_item.item_id.clone(),
+                    name: result_item.name.clone(),
+                });
             }
         }
     }
@@ -446,7 +463,7 @@ fn render_ui(
         state.on_restart_help_count = 0;
         state.on_restart_gameover_count = 0;
         inv.items.clear();
-        *combine_state = input_intent::CombineState::default();
+        *mode_state = input_intent::InputModeState::default();
         feedback.0 = "You look around the room.".into();
         objectives.all.clear();
         camera_ctrl.history.clear();

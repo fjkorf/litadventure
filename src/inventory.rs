@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::game_data::{GameDataHandles, GameDataReady, RecipeBook};
+use crate::game_data::{GameDataHandles, GameDataReady, ExamineResultSet, RecipeBook};
 use crate::interaction::FeedbackText;
 
 /// A collected item in the player's inventory.
@@ -17,6 +17,16 @@ pub struct Item {
 pub struct Inventory {
     pub items: Vec<Item>,
     pub combination_recipes: Vec<CombinationRecipe>,
+    pub examine_results: Vec<ExamineResult>,
+}
+
+/// Defines what happens when an item is examined.
+#[derive(Debug, Clone)]
+pub struct ExamineResult {
+    pub item_id: String,
+    pub produces_id: String,
+    pub produces_name: String,
+    pub examine_message: String,
 }
 
 /// Defines what happens when two items are combined.
@@ -84,6 +94,7 @@ impl Inventory {
 pub struct ItemPickedUp {
     pub item_id: String,
     pub name: String,
+    pub description: String,
 }
 
 /// System: when an InventoryItem entity is clicked and collected,
@@ -94,7 +105,7 @@ pub fn collect_item(
     mut feedback: ResMut<FeedbackText>,
 ) {
     for ev in events.read() {
-        inventory.add_item(&ev.item_id, &ev.name, "");
+        inventory.add_item(&ev.item_id, &ev.name, &ev.description);
         feedback.0 = format!("You pick up the {}.", ev.name);
     }
 }
@@ -131,13 +142,38 @@ fn load_recipes_from_data(
     *loaded = true;
 }
 
+/// Load examine results from RON data once assets are ready.
+fn load_examine_results_from_data(
+    ready: Res<GameDataReady>,
+    handles: Res<GameDataHandles>,
+    assets: Res<Assets<ExamineResultSet>>,
+    mut inventory: ResMut<Inventory>,
+    mut loaded: Local<bool>,
+) {
+    if *loaded || !ready.0 {
+        return;
+    }
+    let Some(handle) = &handles.examine_results else { return };
+    let Some(data) = assets.get(handle) else { return };
+
+    for def in &data.results {
+        inventory.examine_results.push(ExamineResult {
+            item_id: def.item_id.clone(),
+            produces_id: def.produces_id.clone(),
+            produces_name: def.produces_name.clone(),
+            examine_message: def.examine_message.clone(),
+        });
+    }
+    *loaded = true;
+}
+
 pub struct InventoryPlugin;
 
 impl Plugin for InventoryPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<Inventory>()
             .add_message::<ItemPickedUp>()
-            .add_systems(Update, (load_recipes_from_data, collect_item));
+            .add_systems(Update, (load_recipes_from_data, load_examine_results_from_data, collect_item));
     }
 }
 

@@ -23,22 +23,34 @@ pub enum InputIntent {
     CyclePrev,
     /// Enter/exit combine mode (C)
     ToggleCombineMode,
+    /// Enter/exit examine mode (E)
+    ToggleExamineMode,
 }
 
-/// Keyboard-driven inventory combine mode.
-/// Press C to enter, Tab/Shift-Tab to cycle items, Enter to select, Escape to exit.
+/// Which exclusive input mode the player is in.
+#[derive(PartialEq, Clone, Debug, Default)]
+pub enum InputMode {
+    #[default]
+    Playing,
+    Combining,
+    Examining,
+}
+
+/// Shared state for inventory interaction modes (Combine, Examine).
+/// One resource, one render_ui param — replaces the old CombineState.
 #[derive(Resource, Default)]
-pub struct CombineState {
-    pub active: bool,
+pub struct InputModeState {
+    pub mode: InputMode,
     pub cursor: usize,
     pub first_selection: Option<String>,
-    /// Set by handle_combine_mode, consumed by render_ui to apply the combine.
     pub pending_combine: Option<(String, String)>,
+    pub pending_transform: Option<(String, String, String)>,
 }
 
-/// Run condition: true when combine mode is NOT active. Attach to systems that
-/// should be suppressed during keyboard combine (back-navigation, 3D confirm, etc.).
-pub fn combine_inactive(combine: Res<CombineState>) -> bool { !combine.active }
+/// Run condition factory: returns true when the current InputMode matches `mode`.
+pub fn input_mode(mode: InputMode) -> impl Fn(Res<InputModeState>) -> bool + Clone {
+    move |s: Res<InputModeState>| s.mode == mode
+}
 
 /// Reads raw keyboard + mouse input, guards against egui, emits InputIntent messages.
 fn produce_input_intents(
@@ -90,6 +102,9 @@ fn produce_input_intents(
         }
         if kbd_ok && keys.just_pressed(config.combine) {
             intents.write(InputIntent::ToggleCombineMode);
+        }
+        if kbd_ok && keys.just_pressed(config.examine) {
+            intents.write(InputIntent::ToggleExamineMode);
         }
     }
 }
@@ -277,6 +292,7 @@ fn handle_confirm_intent(
         pickup_events.write(crate::inventory::ItemPickedUp {
             item_id: item.item_id.clone(),
             name: item.name.clone(),
+            description: item.description.clone(),
         });
         commands
             .entity(entity)
@@ -439,73 +455,143 @@ fn update_dwell_click(
     }
 }
 
-/// Handle combine mode: toggle on/off, cycle items, select, auto-combine.
+/// Handle combine mode: cycle items, select two, auto-combine.
+/// Only runs when InputMode::Combining (via run condition).
 fn handle_combine_mode(
     mut intents: MessageReader<InputIntent>,
-    mut combine: ResMut<CombineState>,
+    mut ms: ResMut<InputModeState>,
     inv: Res<crate::inventory::Inventory>,
     mut feedback: ResMut<crate::interaction::FeedbackText>,
 ) {
     for intent in intents.read() {
         match intent {
-            InputIntent::ToggleCombineMode => {
-                if combine.active {
-                    combine.active = false;
-                    combine.first_selection = None;
-                    combine.cursor = 0;
-                    feedback.0 = "Exited combine mode.".into();
-                } else if inv.items.len() >= 2 {
-                    combine.active = true;
-                    combine.cursor = 0;
-                    combine.first_selection = None;
+            InputIntent::ToggleCombineMode | InputIntent::CancelOrBack => {
+                ms.mode = InputMode::Playing;
+                ms.first_selection = None;
+                ms.cursor = 0;
+                feedback.0 = "Exited combine mode.".into();
+            }
+            InputIntent::CycleNext => {
+                if !inv.items.is_empty() {
+                    ms.cursor = (ms.cursor + 1) % inv.items.len();
+                    feedback.0 = format!("→ {}", inv.items[ms.cursor].name);
+                }
+            }
+            InputIntent::CyclePrev => {
+                if !inv.items.is_empty() {
+                    ms.cursor = if ms.cursor == 0 { inv.items.len() - 1 } else { ms.cursor - 1 };
+                    feedback.0 = format!("→ {}", inv.items[ms.cursor].name);
+                }
+            }
+            InputIntent::ConfirmFocused => {
+                if ms.cursor < inv.items.len() {
+                    let item_id = inv.items[ms.cursor].item_id.clone();
+                    let item_name = inv.items[ms.cursor].name.clone();
+
+                    if let Some(first) = &ms.first_selection {
+                        if *first == item_id {
+                            feedback.0 = "Can't combine an item with itself.".into();
+                        } else {
+                            ms.pending_combine = Some((first.clone(), item_id));
+                            ms.mode = InputMode::Playing;
+                            ms.first_selection = None;
+                            ms.cursor = 0;
+                        }
+                    } else {
+                        ms.first_selection = Some(item_id);
+                        feedback.0 = format!("Selected {item_name}. Pick second item.");
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Handle examine mode: cycle items, examine/transform on confirm.
+/// Only runs when InputMode::Examining (via run condition).
+fn handle_examine_mode(
+    mut intents: MessageReader<InputIntent>,
+    mut ms: ResMut<InputModeState>,
+    inv: Res<crate::inventory::Inventory>,
+    mut feedback: ResMut<crate::interaction::FeedbackText>,
+) {
+    for intent in intents.read() {
+        match intent {
+            InputIntent::ToggleExamineMode | InputIntent::CancelOrBack => {
+                ms.mode = InputMode::Playing;
+                ms.cursor = 0;
+                feedback.0 = "Exited examine mode.".into();
+            }
+            InputIntent::CycleNext => {
+                if !inv.items.is_empty() {
+                    ms.cursor = (ms.cursor + 1) % inv.items.len();
+                    feedback.0 = format!("→ {}", inv.items[ms.cursor].name);
+                }
+            }
+            InputIntent::CyclePrev => {
+                if !inv.items.is_empty() {
+                    ms.cursor = if ms.cursor == 0 { inv.items.len() - 1 } else { ms.cursor - 1 };
+                    feedback.0 = format!("→ {}", inv.items[ms.cursor].name);
+                }
+            }
+            InputIntent::ConfirmFocused => {
+                if ms.cursor < inv.items.len() {
+                    let item_id = inv.items[ms.cursor].item_id.clone();
+
+                    // Check for transformation
+                    if let Some(result) = inv.examine_results.iter().find(|r| r.item_id == item_id) {
+                        feedback.0 = result.examine_message.clone();
+                        ms.pending_transform = Some((
+                            item_id,
+                            result.produces_id.clone(),
+                            result.produces_name.clone(),
+                        ));
+                    } else {
+                        // Show description
+                        let desc = &inv.items[ms.cursor].description;
+                        feedback.0 = if desc.is_empty() {
+                            format!("You examine the {}. Nothing special.", inv.items[ms.cursor].name)
+                        } else {
+                            desc.clone()
+                        };
+                    }
+                    ms.mode = InputMode::Playing;
+                    ms.cursor = 0;
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Toggle into combine/examine modes from Playing. Runs in all modes to handle
+/// ToggleCombineMode and ToggleExamineMode intents when entering FROM Playing.
+fn handle_mode_entry(
+    mut intents: MessageReader<InputIntent>,
+    mut ms: ResMut<InputModeState>,
+    inv: Res<crate::inventory::Inventory>,
+    mut feedback: ResMut<crate::interaction::FeedbackText>,
+) {
+    for intent in intents.read() {
+        match intent {
+            InputIntent::ToggleCombineMode if ms.mode == InputMode::Playing => {
+                if inv.items.len() >= 2 {
+                    ms.mode = InputMode::Combining;
+                    ms.cursor = 0;
+                    ms.first_selection = None;
                     feedback.0 = "Combine mode: Tab to cycle, Enter to select, Esc to cancel.".into();
                 } else {
                     feedback.0 = "Need at least 2 items to combine.".into();
                 }
             }
-            InputIntent::CancelOrBack if combine.active => {
-                combine.active = false;
-                combine.first_selection = None;
-                combine.cursor = 0;
-                feedback.0 = "Exited combine mode.".into();
-            }
-            InputIntent::CycleNext if combine.active => {
+            InputIntent::ToggleExamineMode if ms.mode == InputMode::Playing => {
                 if !inv.items.is_empty() {
-                    combine.cursor = (combine.cursor + 1) % inv.items.len();
-                    let name = &inv.items[combine.cursor].name;
-                    feedback.0 = format!("→ {name}");
-                }
-            }
-            InputIntent::CyclePrev if combine.active => {
-                if !inv.items.is_empty() {
-                    combine.cursor = if combine.cursor == 0 {
-                        inv.items.len() - 1
-                    } else {
-                        combine.cursor - 1
-                    };
-                    let name = &inv.items[combine.cursor].name;
-                    feedback.0 = format!("→ {name}");
-                }
-            }
-            InputIntent::ConfirmFocused if combine.active => {
-                if combine.cursor < inv.items.len() {
-                    let item_id = inv.items[combine.cursor].item_id.clone();
-                    let item_name = inv.items[combine.cursor].name.clone();
-
-                    if let Some(first) = &combine.first_selection {
-                        if *first == item_id {
-                            feedback.0 = "Can't combine an item with itself.".into();
-                        } else {
-                            let first_clone = first.clone();
-                            combine.pending_combine = Some((first_clone, item_id));
-                            combine.active = false;
-                            combine.first_selection = None;
-                            combine.cursor = 0;
-                        }
-                    } else {
-                        combine.first_selection = Some(item_id);
-                        feedback.0 = format!("Selected {item_name}. Pick second item.");
-                    }
+                    ms.mode = InputMode::Examining;
+                    ms.cursor = 0;
+                    feedback.0 = "Examine mode: Tab to cycle, Enter to examine, Esc to cancel.".into();
+                } else {
+                    feedback.0 = "No items to examine.".into();
                 }
             }
             _ => {}
@@ -523,16 +609,18 @@ impl Plugin for InputIntentPlugin {
             .init_resource::<FocusedClickable>()
             .init_resource::<DwellClickSettings>()
             .init_resource::<DwellState>()
-            .init_resource::<CombineState>()
+            .init_resource::<InputModeState>()
             .add_systems(PreUpdate, produce_input_intents)
             .add_systems(
                 Update,
                 (
                     update_clickable_focus_list,
-                    handle_cycle_intent.run_if(combine_inactive),
-                    handle_confirm_intent.run_if(combine_inactive),
-                    handle_combine_mode,
-                    update_dwell_click.run_if(combine_inactive),
+                    handle_cycle_intent.run_if(input_mode(InputMode::Playing)),
+                    handle_confirm_intent.run_if(input_mode(InputMode::Playing)),
+                    handle_mode_entry,
+                    handle_combine_mode.run_if(input_mode(InputMode::Combining)),
+                    handle_examine_mode.run_if(input_mode(InputMode::Examining)),
+                    update_dwell_click.run_if(input_mode(InputMode::Playing)),
                 ),
             );
     }

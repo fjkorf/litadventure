@@ -69,6 +69,21 @@ pub struct RoomSet {
     pub starting_room: String,
 }
 
+// -- Examine result data --
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct ExamineResultDef {
+    pub item_id: String,
+    pub produces_id: String,
+    pub produces_name: String,
+    pub examine_message: String,
+}
+
+#[derive(Deserialize, Asset, TypePath, Debug)]
+pub struct ExamineResultSet {
+    pub results: Vec<ExamineResultDef>,
+}
+
 // -- Level manifest --
 
 #[derive(Deserialize, Debug, Clone)]
@@ -92,6 +107,7 @@ pub struct GameDataHandles {
     pub recipes: Option<Handle<RecipeBook>>,
     pub rooms: Option<Handle<RoomSet>>,
     pub level: Option<Handle<LevelManifest>>,
+    pub examine_results: Option<Handle<ExamineResultSet>>,
 }
 
 /// Whether all game data assets have finished loading.
@@ -105,6 +121,7 @@ fn load_game_data(mut handles: ResMut<GameDataHandles>, asset_server: Res<AssetS
     handles.recipes = Some(asset_server.load("data/recipes.ron"));
     handles.rooms = Some(asset_server.load("data/rooms.ron"));
     handles.level = Some(asset_server.load("data/demo.level.ron"));
+    handles.examine_results = Some(asset_server.load("data/examine_results.ron"));
 }
 
 /// System that checks if all assets are loaded and sets the ready flag.
@@ -115,6 +132,7 @@ fn check_game_data_ready(
     recipes: Res<Assets<RecipeBook>>,
     rooms: Res<Assets<RoomSet>>,
     levels: Res<Assets<LevelManifest>>,
+    examine: Res<Assets<ExamineResultSet>>,
     mut ready: ResMut<GameDataReady>,
 ) {
     if ready.0 {
@@ -140,7 +158,11 @@ fn check_game_data_ready(
         && handles
             .level
             .as_ref()
-            .is_some_and(|h| levels.get(h).is_some());
+            .is_some_and(|h| levels.get(h).is_some())
+        && handles
+            .examine_results
+            .as_ref()
+            .is_some_and(|h| examine.get(h).is_some());
 
     if all_loaded {
         ready.0 = true;
@@ -156,6 +178,7 @@ impl Plugin for GameDataPlugin {
             .add_plugins(RonAssetPlugin::<RecipeBook>::new(&["recipes.ron"]))
             .add_plugins(RonAssetPlugin::<RoomSet>::new(&["rooms.ron"]))
             .add_plugins(RonAssetPlugin::<LevelManifest>::new(&["level.ron"]))
+            .add_plugins(RonAssetPlugin::<ExamineResultSet>::new(&["examine_results.ron"]))
             .init_resource::<GameDataHandles>()
             .init_resource::<GameDataReady>()
             .add_systems(Startup, load_game_data)

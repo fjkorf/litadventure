@@ -6,7 +6,7 @@ use crate::camera::{
     find_spot_by_name, start_camera_tween, CameraController, PlayerCamera,
 };
 use crate::components::*;
-use crate::input_intent::{InputIntent, combine_inactive};
+use crate::input_intent::{InputIntent, InputMode, input_mode};
 use crate::inventory::{Inventory, ItemPickedUp};
 use crate::navigation::{Portal, PortalApproachRequested};
 use crate::objectives::ObjectiveCompleted;
@@ -110,6 +110,7 @@ fn on_click(
         pickup_events.write(ItemPickedUp {
             item_id: item.item_id.clone(),
             name: item.name.clone(),
+            description: item.description.clone(),
         });
         commands
             .entity(entity)
@@ -430,8 +431,8 @@ impl Plugin for InteractionPlugin {
                 Update,
                 (
                     finish_transition,
-                    handle_back_navigation.run_if(combine_inactive),
-                    handle_return_to_center.run_if(combine_inactive),
+                    handle_back_navigation.run_if(input_mode(InputMode::Playing)),
+                    handle_return_to_center.run_if(input_mode(InputMode::Playing)),
                     check_stuck,
                 ),
             );

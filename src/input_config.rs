@@ -10,6 +10,7 @@ struct InputConfigRaw {
     pub cycle_next: String,
     pub confirm: String,
     pub combine: String,
+    pub examine: String,
     pub debug_overlay: String,
 }
 
@@ -22,6 +23,7 @@ pub struct InputConfig {
     pub cycle_next: KeyCode,
     pub confirm: KeyCode,
     pub combine: KeyCode,
+    pub examine: KeyCode,
     pub debug_overlay: KeyCode,
 }
 
@@ -34,6 +36,7 @@ impl Default for InputConfig {
             cycle_next: KeyCode::Tab,
             confirm: KeyCode::Enter,
             combine: KeyCode::KeyC,
+            examine: KeyCode::KeyE,
             debug_overlay: KeyCode::F1,
         }
     }
@@ -116,6 +119,7 @@ fn apply_input_config(
     if let Some(k) = parse_key(&raw.cycle_next) { config.cycle_next = k; }
     if let Some(k) = parse_key(&raw.confirm) { config.confirm = k; }
     if let Some(k) = parse_key(&raw.combine) { config.combine = k; }
+    if let Some(k) = parse_key(&raw.examine) { config.examine = k; }
     if let Some(k) = parse_key(&raw.debug_overlay) { config.debug_overlay = k; }
 
     *applied = true;
