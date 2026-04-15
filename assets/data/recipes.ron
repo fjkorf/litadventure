@@ -14,5 +14,13 @@
             result_name: "Oiled Key",
             result_description: "A brass key coated in machine oil. It should turn smoothly now.",
         ),
+        // After examining the brass key, it becomes engraved_key — still combinable with oil
+        (
+            item_a: "engraved_key",
+            item_b: "oil",
+            result_id: "oiled_key",
+            result_name: "Oiled Key",
+            result_description: "A brass key coated in machine oil. It should turn smoothly now.",
+        ),
     ],
 )

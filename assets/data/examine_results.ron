@@ -1,3 +1,23 @@
 (
-    results: [],
+    results: [
+        // Examining the flashlight reveals it has batteries — no transformation,
+        // but examining the brass key reveals an engraving hint.
+        (
+            item_id: "brass_key",
+            produces_id: "engraved_key",
+            produces_name: "Engraved Key",
+            examine_message: "You turn the key over. Tiny letters are etched into the bow: 'OIL ME'. The mechanism looks stiff.",
+        ),
+        // The engraved key still combines with oil (recipes are item_id based).
+        // We need to add a recipe for engraved_key + oil too.
+
+        // Examining the magnifying glass reveals a maker's mark — flavor only,
+        // transforms to same item with richer description.
+        (
+            item_id: "magnifying_glass",
+            produces_id: "magnifying_glass",
+            produces_name: "Magnifying Glass",
+            examine_message: "Through the lens you notice a tiny maker's mark: 'Hartwell & Sons, 1923'. Fine craftsmanship.",
+        ),
+    ]
 )
