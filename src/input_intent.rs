@@ -88,18 +88,24 @@ pub struct FocusedClickable {
 pub struct KeyboardFocusHighlight;
 
 /// Rebuild the ordered list of clickable entities when the scene changes.
+/// Only includes visible entities (not Hidden).
 fn update_clickable_focus_list(
-    clickables: Query<Entity, (With<crate::components::Clickable>, With<Visibility>)>,
+    clickables: Query<(Entity, &Visibility), With<crate::components::Clickable>>,
     mut focused: ResMut<FocusedClickable>,
     mut needs_rebuild: Local<usize>,
 ) {
-    let count = clickables.iter().count();
-    if count == *needs_rebuild {
+    let visible: Vec<Entity> = clickables
+        .iter()
+        .filter(|(_, vis)| **vis != Visibility::Hidden)
+        .map(|(e, _)| e)
+        .collect();
+
+    if visible.len() == *needs_rebuild {
         return;
     }
-    *needs_rebuild = count;
+    *needs_rebuild = visible.len();
 
-    focused.ordered = clickables.iter().collect();
+    focused.ordered = visible;
     // If the currently focused entity is gone, clear focus
     if let Some(e) = focused.entity {
         if !focused.ordered.contains(&e) {
@@ -204,6 +210,9 @@ fn handle_confirm_intent(
         Option<&crate::components::InventoryItem>,
         Option<&crate::navigation::Portal>,
         Option<&crate::components::RequiresItem>,
+        Option<&crate::components::TweenConfig>,
+        Option<&crate::components::ObjectState>,
+        &Transform,
     )>,
     inv: Res<crate::inventory::Inventory>,
     mut feedback: ResMut<crate::interaction::FeedbackText>,
@@ -215,7 +224,7 @@ fn handle_confirm_intent(
     mut win_events: MessageWriter<crate::interaction::GameWon>,
     camera_q: Query<(Entity, &Transform), With<crate::camera::PlayerCamera>>,
     spot_q: Query<(&crate::components::CameraSpot, &GlobalTransform, Entity)>,
-    state_q: Query<&crate::components::ObjectState>,
+    mut contained_q: Query<(Entity, &crate::components::ContainedIn, &mut Visibility)>,
     mut play_state: ResMut<crate::interaction::PlayState>,
     mut commands: Commands,
 ) {
@@ -225,10 +234,11 @@ fn handle_confirm_intent(
     let Some(entity) = focused.entity else { return };
     if camera_ctrl.transitioning { return; }
 
-    let Ok((clickable, nav, inv_item, portal, requires)) = clickable_q.get(entity) else {
+    let Ok((clickable, nav, inv_item, portal, requires, tween_cfg, obj_state, entity_transform)) = clickable_q.get(entity) else {
         return;
     };
-    let obj_state = state_q.get(entity).ok().copied();
+    let entity_transform = *entity_transform;
+    let obj_state = obj_state.copied();
 
     // Portal
     if let Some(portal) = portal {
@@ -278,6 +288,52 @@ fn handle_confirm_intent(
     if let Some(crate::components::ObjectState::Unlocked) = obj_state {
         feedback.0 = "You step through the door into the light.".into();
         win_events.write(crate::interaction::GameWon);
+        return;
+    }
+
+    // Closed → Open (reveal contained items + tween)
+    if let Some(crate::components::ObjectState::Closed) = obj_state {
+        commands.entity(entity).insert(crate::components::ObjectState::Open);
+        feedback.0 = "You open it.".into();
+        for (_, contained, mut vis) in contained_q.iter_mut() {
+            if contained.container == entity {
+                *vis = Visibility::Inherited;
+            }
+        }
+        if let Some(tc) = tween_cfg {
+            let start = entity_transform.translation;
+            let end = start + tc.open_offset;
+            commands.entity(entity).insert(
+                bevy_tweening::TweenAnim::new(bevy_tweening::Tween::new(
+                    EaseFunction::CubicOut,
+                    std::time::Duration::from_millis(tc.duration_ms as u64),
+                    bevy_tweening::lens::TransformPositionLens { start, end },
+                )),
+            );
+        }
+        return;
+    }
+
+    // Open → Closed (hide contained items + tween)
+    if let Some(crate::components::ObjectState::Open) = obj_state {
+        commands.entity(entity).insert(crate::components::ObjectState::Closed);
+        feedback.0 = "You close it.".into();
+        for (_, contained, mut vis) in contained_q.iter_mut() {
+            if contained.container == entity {
+                *vis = Visibility::Hidden;
+            }
+        }
+        if let Some(tc) = tween_cfg {
+            let start = entity_transform.translation;
+            let end = start - tc.open_offset;
+            commands.entity(entity).insert(
+                bevy_tweening::TweenAnim::new(bevy_tweening::Tween::new(
+                    EaseFunction::CubicOut,
+                    std::time::Duration::from_millis(tc.duration_ms as u64),
+                    bevy_tweening::lens::TransformPositionLens { start, end },
+                )),
+            );
+        }
         return;
     }
 
