@@ -36,6 +36,10 @@ pub struct CombineState {
     pub pending_combine: Option<(String, String)>,
 }
 
+/// Run condition: true when combine mode is NOT active. Attach to systems that
+/// should be suppressed during keyboard combine (back-navigation, 3D confirm, etc.).
+pub fn combine_inactive(combine: Res<CombineState>) -> bool { !combine.active }
+
 /// Reads raw keyboard + mouse input, guards against egui, emits InputIntent messages.
 fn produce_input_intents(
     keys: Res<ButtonInput<KeyCode>>,
@@ -173,10 +177,8 @@ fn handle_cycle_intent(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mat_q: Query<&MeshMaterial3d<StandardMaterial>>,
     children_q: Query<&Children>,
-    combine: Res<CombineState>,
     mut commands: Commands,
 ) {
-    if combine.active { intents.read().last(); return; } // drain intents, skip
     let mut direction: Option<i32> = None;
     for intent in intents.read() {
         match intent {
@@ -250,7 +252,7 @@ fn handle_confirm_intent(
     if !has_confirm { return; }
 
     let Some(entity) = focused.entity else { return };
-    if camera_ctrl.transitioning { return; }
+    if camera_ctrl.transitioning || *play_state == crate::interaction::PlayState::Transitioning { return; }
 
     let Ok((clickable, nav, inv_item, portal, requires, tween_cfg, obj_state, entity_transform)) = clickable_q.get(entity) else {
         return;
@@ -355,8 +357,11 @@ fn handle_confirm_intent(
         return;
     }
 
-    // Default: feedback
+    // Default: feedback + examining state
     feedback.0 = clickable.description.clone();
+    if nav.is_none() {
+        *play_state = crate::interaction::PlayState::Examining(entity);
+    }
 
     // NavigatesTo
     if let Some(nav) = nav {
@@ -524,10 +529,10 @@ impl Plugin for InputIntentPlugin {
                 Update,
                 (
                     update_clickable_focus_list,
-                    handle_cycle_intent,
-                    handle_confirm_intent,
+                    handle_cycle_intent.run_if(combine_inactive),
+                    handle_confirm_intent.run_if(combine_inactive),
                     handle_combine_mode,
-                    update_dwell_click,
+                    update_dwell_click.run_if(combine_inactive),
                 ),
             );
     }

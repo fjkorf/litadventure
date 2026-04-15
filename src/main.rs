@@ -446,6 +446,7 @@ fn render_ui(
         state.on_restart_help_count = 0;
         state.on_restart_gameover_count = 0;
         inv.items.clear();
+        *combine_state = input_intent::CombineState::default();
         feedback.0 = "You look around the room.".into();
         objectives.all.clear();
         camera_ctrl.history.clear();

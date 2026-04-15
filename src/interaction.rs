@@ -6,7 +6,7 @@ use crate::camera::{
     find_spot_by_name, start_camera_tween, CameraController, PlayerCamera,
 };
 use crate::components::*;
-use crate::input_intent::InputIntent;
+use crate::input_intent::{InputIntent, combine_inactive};
 use crate::inventory::{Inventory, ItemPickedUp};
 use crate::navigation::{Portal, PortalApproachRequested};
 use crate::objectives::ObjectiveCompleted;
@@ -428,7 +428,12 @@ impl Plugin for InteractionPlugin {
             .add_observer(on_hover_end)
             .add_systems(
                 Update,
-                (finish_transition, handle_back_navigation, handle_return_to_center, check_stuck),
+                (
+                    finish_transition,
+                    handle_back_navigation.run_if(combine_inactive),
+                    handle_return_to_center.run_if(combine_inactive),
+                    check_stuck,
+                ),
             );
     }
 }
